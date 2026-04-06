@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/yucardphoto/db" VERSION="20260406" COMMENT="XMLDB file for local_yucardphoto"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_yucardphoto" COMMENT="YU Card photo references — stores filesystem path/url for each student photo imported from the YU Card system.">
+      <FIELDS>
+        <FIELD NAME="id"                 TYPE="int"  LENGTH="10" NOTNULL="true"  SEQUENCE="true"/>
+        <FIELD NAME="sisid"              TYPE="char" LENGTH="50" NOTNULL="true"  SEQUENCE="false" COMMENT="Student Information System ID (e.g. York student number)"/>
+        <FIELD NAME="firstname"          TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="lastname"           TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="moodle_file_url"    TYPE="text"              NOTNULL="false" SEQUENCE="false" COMMENT="Moodle pluginfile URL to the stored photo (set after file is written to the Moodle file system)"/>
+        <FIELD NAME="yucard_image_path"  TYPE="text"              NOTNULL="false" SEQUENCE="false" COMMENT="Relative path within the Moodle file area (component/filearea/itemid/filepath/filename)"/>
+        <FIELD NAME="yucard_lastupdated" TYPE="int"  LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Unix timestamp of the last time the photo was updated in the source YU Card system"/>
+        <FIELD NAME="timecreated"        TYPE="int"  LENGTH="10" NOTNULL="true"  SEQUENCE="false" DEFAULT="0"/>
+        <FIELD NAME="timemodified"       TYPE="int"  LENGTH="10" NOTNULL="true"  SEQUENCE="false" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_sisid"   UNIQUE="true"  FIELDS="sisid"/>
+        <INDEX NAME="idx_lastname" UNIQUE="false" FIELDS="lastname"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="local_yucardphoto_coursesettings" COMMENT="Per-course settings for the YU Card photo roster feature.">
+      <FIELDS>
+        <FIELD NAME="id"       TYPE="int"  LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int"  LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="mdl_course.id"/>
+        <FIELD NAME="enabled"  TYPE="int"  LENGTH="1"  NOTNULL="true" SEQUENCE="false" DEFAULT="0" COMMENT="1 = Photo View button shown on participants page, 0 = hidden"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_courseid" UNIQUE="true" FIELDS="courseid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

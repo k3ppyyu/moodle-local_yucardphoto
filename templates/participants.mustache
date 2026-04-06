@@ -1,0 +1,194 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_yucardphoto/participants
+
+    YU Card Photo Roster page — responsive, searchable, sortable, paginated
+    grid of student photos for a course.
+
+    Classes required:
+    * none
+
+    Data attributes required:
+    * none
+
+    Context variables required:
+    * coursefullname    string  Full name of the course (already formatted/escaped).
+    * pagetitle         string  Page <h2> title string (already formatted/escaped).
+    * backurl           string  URL back to the Participants (user/index.php) page.
+    * backlabel         string  Localised "Back to Participants" label.
+    * formaction        string  Form action URL (this page, without query params).
+    * courseid          int     Course ID (hidden form field).
+    * searchvalue       string  Current search term (HTML-escaped).
+    * searchlabel       string  Localised "Search students" label.
+    * searchplaceholder string  Localised placeholder text.
+    * sortoptions       array   [{value, label, selected}] sort dropdown options.
+    * sortlabel         string  Localised "Sort by" label.
+    * perPageOptions    array   [{value, label, selected}] per-page dropdown options.
+    * perpagelabel      string  Localised "Photos per page" label.
+    * searchbtnlabel    string  Localised submit button label.
+    * countlabel        string  Localised count string e.g. "45 users".
+    * hasstudents       bool    True when the students array is non-empty.
+    * students          array   [{firstname, lastname, sisid, email, photourl, alttext}]
+    * noresultsmsg      string  Message shown when hasstudents is false.
+    * pagingbar         string  Rendered HTML paging bar (from $OUTPUT->render()).
+
+    Example context (json):
+    {
+        "coursefullname": "Introduction to Computing",
+        "pagetitle": "Photo Roster — Introduction to Computing",
+        "backurl": "/user/index.php?id=5",
+        "backlabel": "Back to Participants",
+        "formaction": "/local/yucardphoto/participants.php",
+        "courseid": 5,
+        "searchvalue": "",
+        "searchlabel": "Search students",
+        "searchplaceholder": "First name, last name or student ID\u2026",
+        "sortoptions": [
+            {"value": "lastname",  "label": "Last name",   "selected": true},
+            {"value": "firstname", "label": "First name",  "selected": false},
+            {"value": "email",     "label": "Email",       "selected": false},
+            {"value": "sisid",     "label": "Student ID",  "selected": false}
+        ],
+        "sortlabel": "Sort by",
+        "perPageOptions": [
+            {"value": 20,  "label": "4 \u00d7 5 (20 per page)", "selected": true},
+            {"value": 100, "label": "All (max 100 per page)",   "selected": false}
+        ],
+        "perpagelabel": "Photos per page",
+        "searchbtnlabel": "Search",
+        "countlabel": "3 users",
+        "hasstudents": true,
+        "students": [
+            {
+                "firstname": "Jane",
+                "lastname": "Smith",
+                "sisid": "212345678",
+                "email": "jsmith@example.com",
+                "photourl": "/pluginfile.php/1/local_yucardphoto/photos/123/212345678.jpg",
+                "alttext": "Jane Smith"
+            }
+        ],
+        "noresultsmsg": "",
+        "pagingbar": ""
+    }
+}}
+
+{{! ── Page heading ─────────────────────────────────────────────────────── }}
+<h2 class="mb-2">{{pagetitle}}</h2>
+
+<a href="{{backurl}}" class="btn btn-outline-secondary mb-3">
+    {{#pix}} t/left, core {{/pix}}
+    {{backlabel}}
+</a>
+
+{{! ── Controls bar ────────────────────────────────────────────────────── }}
+<form method="get" action="{{formaction}}" class="d-flex flex-wrap gap-2 align-items-end mb-4"
+      data-region="ycp-controls">
+    <input type="hidden" name="id" value="{{courseid}}">
+
+    {{! Search }}
+    <div class="flex-grow-1">
+        <label for="ycp-search" class="form-label fw-semibold">{{searchlabel}}</label>
+        <input type="search"
+               id="ycp-search"
+               name="search"
+               value="{{searchvalue}}"
+               placeholder="{{searchplaceholder}}"
+               class="form-control"
+               aria-label="{{searchlabel}}">
+    </div>
+
+    {{! Sort }}
+    <div>
+        <label for="ycp-sort" class="form-label fw-semibold">{{sortlabel}}</label>
+        <select id="ycp-sort" name="sort" class="form-select">
+            {{#sortoptions}}
+                <option value="{{value}}"{{#selected}} selected{{/selected}}>{{label}}</option>
+            {{/sortoptions}}
+        </select>
+    </div>
+
+    {{! Per page }}
+    <div>
+        <label for="ycp-perpage" class="form-label fw-semibold">{{perpagelabel}}</label>
+        <select id="ycp-perpage" name="perpage" class="form-select">
+            {{#perPageOptions}}
+                <option value="{{value}}"{{#selected}} selected{{/selected}}>{{label}}</option>
+            {{/perPageOptions}}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary align-self-end">{{searchbtnlabel}}</button>
+</form>
+
+{{! ── Result count ────────────────────────────────────────────────────── }}
+<p class="text-muted small mb-3">{{countlabel}}</p>
+
+{{! ── Photo grid ─────────────────────────────────────────────────────── }}
+{{#hasstudents}}
+<div class="ycp-photo-grid row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-4 g-3"
+     role="list"
+     data-region="ycp-grid">
+    {{#students}}
+    <div class="col" role="listitem">
+        <div class="card h-100 text-center ycp-student-card">
+
+            {{! Photo }}
+            <div class="card-img-top d-flex justify-content-center align-items-center pt-3">
+                <img src="{{photourl}}"
+                     alt="{{alttext}}"
+                     width="100"
+                     height="100"
+                     class="rounded-circle ycp-photo"
+                     style="object-fit: cover;">
+            </div>
+
+            {{! Student details }}
+            <div class="card-body p-2">
+                <p class="mb-1 small"><strong>{{lastname}}, {{firstname}}</strong></p>
+                {{#sisid}}
+                    <p class="text-muted small mb-0">{{sisid}}</p>
+                {{/sisid}}
+                <p class="mb-0">
+                    <a href="mailto:{{email}}" class="small text-truncate d-block">{{email}}</a>
+                </p>
+            </div>
+
+        </div>
+    </div>
+    {{/students}}
+</div>
+{{/hasstudents}}
+
+{{^hasstudents}}
+<div class="alert alert-info" role="alert">
+    {{noresultsmsg}}
+</div>
+{{/hasstudents}}
+
+{{! ── Paging bar (pre-rendered HTML) ─────────────────────────────────── }}
+{{#pagingbar}}
+    {{{pagingbar}}}
+{{/pagingbar}}
+
+{{! ── Scoped styles ──────────────────────────────────────────────────── }}
+<style>
+    .ycp-student-card { transition: box-shadow .15s ease; }
+    .ycp-student-card:hover { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .15); }
+    .ycp-photo { border: 2px solid var(--bs-border-color); }
+</style>
