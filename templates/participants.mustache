@@ -106,13 +106,16 @@
           data-region="ycp-controls">
         <input type="hidden" name="id" value="{{courseid}}">
 
-        {{! Single row: search input (left, grows) + sort dropdown (right, fixed) }}
-        <div class="d-flex align-items-center gap-2">
+        {{! Single row: search input (left, fixed width) + sort dropdown (right, hugging margin) }}
+        <div class="d-flex align-items-center gap-2 w-100">
 
-            {{! Search — magnifying glass inside, placeholder only, no label }}
-            <div class="flex-grow-1">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text" aria-hidden="true">
+            {{! Search — fixed max-width so X appearing never causes reflow }}
+            <div style="max-width:22rem; width:100%;">
+                <div class="input-group input-group-sm searchbar rounded" role="search">
+                    <label for="ycp-search">
+                        <span class="visually-hidden">{{searchlabel}}</span>
+                    </label>
+                    <span class="input-group-text border-end-0 bg-transparent pe-1" aria-hidden="true">
                         {{#pix}} a/search, core {{/pix}}
                     </span>
                     <input type="search"
@@ -120,18 +123,28 @@
                            name="search"
                            value="{{searchvalue}}"
                            placeholder="{{searchplaceholder}}"
-                           class="form-control form-control-sm"
-                           autocomplete="off"
-                           aria-label="{{searchlabel}}">
+                           class="form-control form-control-sm withclear border-start-0 ps-0"
+                           autocomplete="off">
+                    {{! Clear button always in DOM — invisible (not hidden) when no search,
+                        so the input width never changes when it appears/disappears }}
+                    <button class="btn btn-clear btn-sm"
+                            id="ycp-clear-search"
+                            type="button"
+                            style="{{^hassearch}}visibility:hidden;{{/hassearch}}"
+                            aria-label="{{#str}} clearsearch, core {{/str}}">
+                        {{#pix}} e/cancel, core {{/pix}}
+                        <span class="visually-hidden">{{#str}} clearsearch, core {{/str}}</span>
+                    </button>
                 </div>
             </div>
 
-            {{! Sort by — placeholder-style first option, no external label }}
-            <div class="flex-shrink-0" style="min-width:12rem;">
+            {{! Sort by — hugs right, placeholder-style first option }}
+            <div class="ms-auto flex-shrink-0">
+                <label for="ycp-sort" class="visually-hidden">{{#str}} sortby, local_yucardphoto {{/str}}</label>
                 <select id="ycp-sort" name="sort" class="form-select form-select-sm">
                     {{#sortoptions}}
                         {{#placeholder}}
-                        <option value="" disabled{{^selected}} selected{{/selected}} class="text-muted">{{label}}</option>
+                        <option value="" disabled{{^selected}} selected{{/selected}}>{{label}}</option>
                         {{/placeholder}}
                         {{^placeholder}}
                         <option value="{{value}}"{{#selected}} selected{{/selected}}>{{label}}</option>
@@ -140,22 +153,18 @@
                 </select>
             </div>
 
-            {{! No-JS fallback submit — hidden by AMD when JS active }}
-            <div class="flex-shrink-0" id="ycp-submit-wrap">
-                <button type="submit" class="btn btn-primary btn-sm">{{searchbtnlabel}}</button>
-            </div>
         </div>
     </form>
 
-    {{! ── Result count + missing photo alert — sit close under per-page ── }}
-    <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-2">
-        <p class="text-muted small mb-0">{{countlabel}}</p>
+    {{! ── Result count + missing photo badge (clickable) ─────────────── }}
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-3">
+        <span class="text-muted small">{{countlabel}}</span>
         {{#hasnophoto}}
-        <div class="alert alert-warning d-flex align-items-center gap-2 py-1 px-2 mb-0 small" role="alert">
-            <span>&#9888;</span>
-            <span>{{nophotolabel}}</span>
-            <span class="text-muted">— sort by <strong>No photo</strong> to view them.</span>
-        </div>
+        <a href="{{nophotourl}}"
+           class="badge bg-warning text-dark text-decoration-none"
+           title="Sort by missing photos">
+            &#9888; {{nophotolabel}}
+        </a>
         {{/hasnophoto}}
     </div>
 
@@ -219,13 +228,3 @@
 
 </div>{{! end .ycp-students-section }}
 
-{{! ── Scoped styles ──────────────────────────────────────────────────── }}
-<style>
-    .ycp-page-header { padding-bottom: .5rem; }
-    .ycp-students-section h3 { font-size: 1.25rem; }
-    .ycp-student-card { transition: box-shadow .15s ease; }
-    .ycp-student-card:hover { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .15); }
-    .ycp-photo { border: 2px solid var(--bs-border-color); }
-    .ycp-photo-missing { opacity: .45; filter: grayscale(100%); border-color: var(--bs-warning); }
-    .ycp-missing-badge { font-size: .65rem; left: 50%; transform: translateX(-50%); white-space: nowrap; }
-</style>

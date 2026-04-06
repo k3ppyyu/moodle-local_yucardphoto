@@ -186,14 +186,13 @@ $sortdefinitions = [
     'firstname' => get_string('sortbyfirstname', 'local_yucardphoto'),
     'email'     => get_string('sortbyemail',     'local_yucardphoto'),
     'sisid'     => get_string('sortbysisid',     'local_yucardphoto'),
-    'nophoto'   => get_string('sortnophoto',     'local_yucardphoto'),
 ];
 $sortoptions = [];
 // Prepend the disabled placeholder shown when nothing custom is selected.
 $sortoptions[] = [
     'value'       => '',
     'label'       => get_string('sortby', 'local_yucardphoto'),
-    'selected'    => false,
+    'selected'    => ($sort === 'lastname'), // default — show placeholder when on default sort
     'placeholder' => true,
 ];
 foreach ($sortdefinitions as $value => $label) {
@@ -201,19 +200,38 @@ foreach ($sortdefinitions as $value => $label) {
 }
 
 // ---- Show-all / show-paged link -----------------------------------------
-// When viewing paged (perpage=20, default) show a "Show all N" link.
-// When already showing all, show a "Show 20 per page" link back.
-$isshowingall  = ($perpage >= 100);
-$showalllabel  = $isshowingall
+// These links preserve the current sort but always clear search — they control
+// the grid density only, independent of any active search term.
+$isshowingall = ($perpage >= 100);
+$showalllabel = $isshowingall
     ? get_string('showpaged', 'local_yucardphoto')
     : get_string('showall',   'local_yucardphoto', $totalcount);
-$showallurl    = (new moodle_url($pageurl, [
+$showallurl   = (new moodle_url($pageurl, [
     'id'      => $courseid,
-    'search'  => $search,
+    'search'  => $search,   // preserve current search
     'sort'    => $sort,
     'perpage' => $isshowingall ? 20 : 100,
     'page'    => 0,
 ]))->out(false);
+
+// ---- No-photo sort link (replaces dropdown option) ----------------------
+$nophotourl = (new moodle_url($pageurl, [
+    'id'      => $courseid,
+    'search'  => '',        // clear search — show full roster sorted by missing
+    'sort'    => 'nophoto',
+    'perpage' => $perpage,
+    'page'    => 0,
+]))->out(false);
+
+// ---- Clear-search URL (X button) ----------------------------------------
+// Resets search term but preserves sort and perpage.
+$clearurl = ($searchterm !== '') ? (new moodle_url($pageurl, [
+    'id'      => $courseid,
+    'search'  => '',
+    'sort'    => $sort,
+    'perpage' => $perpage,
+    'page'    => 0,
+]))->out(false) : '';
 
 // ---- Student rows -------------------------------------------------------
 $studentrows = [];
@@ -254,10 +272,13 @@ $templatecontext = [
     'searchlabel'       => get_string('search', 'local_yucardphoto'),
     'searchplaceholder' => get_string('searchplaceholder', 'local_yucardphoto'),
     'sortoptions'       => $sortoptions,
-    'searchbtnlabel'    => get_string('search',    'local_yucardphoto'),
-    'countlabel'        => get_string('studentcount',   'local_yucardphoto', $totalcount),
+    'searchbtnlabel'    => get_string('search', 'local_yucardphoto'),
+    'hassearch'         => ($searchterm !== ''),
+    'clearurl'          => $clearurl,
+    'countlabel'        => get_string('studentcount', 'local_yucardphoto', $totalcount),
     'hasnophoto'        => ($nophotocount > 0),
-    'nophotolabel'      => get_string('nophotocount',   'local_yucardphoto', $nophotocount),
+    'nophotolabel'      => get_string('nophotocount', 'local_yucardphoto', $nophotocount),
+    'nophotourl'        => $nophotourl,
     'showallurl'        => $showallurl,
     'showalllabel'      => $showalllabel,
     'isshowingall'      => $isshowingall,

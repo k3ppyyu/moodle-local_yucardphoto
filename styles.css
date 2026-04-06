@@ -1,0 +1,56 @@
+/**
+ * Styles for local_yucardphoto.
+ *
+ * Loaded automatically by Moodle's theme system for all pages when the plugin
+ * is installed. No manual require_css() call needed.
+ *
+ * Only rules that genuinely cannot be expressed with Bootstrap 5 utility
+ * classes or Moodle's own component classes belong here. Form controls
+ * (inputs, selects) use Bootstrap's default border-radius via --bs-border-radius
+ * and do not need overrides.
+ *
+ * @package   local_yucardphoto
+ * @copyright 2026 ED&IT, York University
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+.ycp-page-header {
+    padding-bottom: .5rem;
+}
+
+/* ── Students section heading ────────────────────────────────────────────── */
+.ycp-students-section h3 {
+    font-size: 1.25rem;
+}
+
+/* ── Photo cards ─────────────────────────────────────────────────────────── */
+.ycp-student-card {
+    transition: box-shadow .15s ease;
+}
+
+.ycp-student-card:hover {
+    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .15);
+}
+
+.ycp-photo {
+    border: 2px solid var(--bs-border-color);
+}
+
+.ycp-photo-missing {
+    opacity: .45;
+    filter: grayscale(100%);
+    border-color: var(--bs-warning);
+}
+
+.ycp-missing-badge {
+    font-size: .65rem;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+/* ── Sort dropdown — size to content, not stretched ─────────────────────── */
+#ycp-sort {
+    width: auto;
+}

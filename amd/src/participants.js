@@ -16,9 +16,17 @@
 /**
  * AMD module: interactive controls for the YU Card Photo Roster page.
  *
- * - Sort-by and Per-page dropdowns submit the form immediately on change.
- * - Search input submits automatically after the user pauses typing (keyup debounce).
+ * - Sort-by dropdown submits the form immediately on change.
+ * - Search input submits automatically after the user pauses typing (debounce).
+ * - Enter key submits immediately.
+ * - X clear button clears the search field and submits.
  * - The explicit Submit button is hidden via JS (progressive enhancement).
+ *
+ * Note on DB usage: the PHP page fetches enrolled users + photo records once
+ * per page load using two queries (get_enrolled_users + one IN query). All
+ * search/sort/pagination is then done in PHP memory — no extra queries per
+ * filter interaction. Each form submit costs exactly the same two queries
+ * regardless of search term or sort order.
  *
  * @module     local_yucardphoto/participants
  * @copyright  2026 ED&IT, York University
@@ -29,10 +37,10 @@
  * Initialise the participants page controls.
  *
  * @param {Object} config
- * @param {number} config.debounce  Milliseconds to wait after last keyup before submitting (default 500).
+ * @param {number} config.debounce  Milliseconds to wait after last keyup before submitting (default 600).
  */
 export const init = (config) => {
-    const cfg = Object.assign({debounce: 500}, config || {});
+    const cfg = Object.assign({debounce: 600}, config || {});
 
     const form = document.querySelector('[data-region="ycp-controls"]');
     if (!form) {
@@ -41,31 +49,49 @@ export const init = (config) => {
 
     const searchInput = document.getElementById('ycp-search');
     const sortSelect = document.getElementById('ycp-sort');
-    const submitBtn = form.querySelector('button[type="submit"]');
-
-    // ── Hide the explicit submit button — sort change and keyup handle submission ──
-    if (submitBtn) {
-        submitBtn.style.display = 'none';
-    }
 
     // ── Sort dropdown: submit immediately on change ───────────────────────
     if (sortSelect) {
         sortSelect.addEventListener('change', () => form.submit());
     }
 
-
-    // ── Search input: debounced keyup submit ──────────────────────────────
+    // ── Search input: debounced keyup ─────────────────────────────────────
     if (searchInput) {
         let timer = null;
+
         searchInput.addEventListener('keyup', (e) => {
-            // Submit immediately on Enter, otherwise debounce.
             if (e.key === 'Enter') {
                 clearTimeout(timer);
                 form.submit();
                 return;
             }
+            if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) {
+                return;
+            }
             clearTimeout(timer);
             timer = setTimeout(() => form.submit(), cfg.debounce);
         });
+
+        // ── X clear button — use visibility (not d-none) so layout never shifts ──
+        const clearBtn = document.getElementById('ycp-clear-search');
+
+        const updateClearBtn = () => {
+            if (!clearBtn) {
+                return;
+            }
+            clearBtn.style.visibility = searchInput.value.trim() !== '' ? 'visible' : 'hidden';
+        };
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                updateClearBtn();
+                form.submit();
+            });
+        }
+
+        searchInput.addEventListener('input', updateClearBtn);
+        // Set correct initial state (server may have rendered it visible or hidden).
+        updateClearBtn();
     }
 };
