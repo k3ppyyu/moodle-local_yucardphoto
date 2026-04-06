@@ -44,6 +44,8 @@ defined('MOODLE_INTERNAL') || die();
  * @return void  Sends the file or throws an exception.
  */
 function local_yucardphoto_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    global $DB, $USER;
+
     if ($context->contextlevel !== CONTEXT_SYSTEM) {
         send_file_not_found();
     }
@@ -52,11 +54,45 @@ function local_yucardphoto_pluginfile($course, $cm, $context, $filearea, $args, 
         send_file_not_found();
     }
 
-    // Require login; role check is done in the roster page, but we still
-    // restrict raw file access to logged-in users.
+    // Must be logged in — guests are always denied.
     require_login();
-    if (!has_capability('moodle/course:viewparticipants', context_system::instance())) {
+    if (isguestuser()) {
         send_file_not_found();
+    }
+
+    // Site admins always have access.
+    // For everyone else, verify they hold local/yucardphoto:viewroster in at
+    // least one course context.  This matches exactly the roles defined in
+    // db/access.php (manager, coursecreator, editingteacher, teacher).
+    // Students do NOT have this capability and are therefore denied.
+    if (!is_siteadmin()) {
+        $syscontext = context_system::instance();
+        // Managers may have it at system level via role override.
+        $hassystem = has_capability('local/yucardphoto:viewroster', $syscontext);
+
+        if (!$hassystem) {
+            // Check whether the user has the viewroster capability in any course
+            // via their role assignments.  We join role_capabilities → role_assignments
+            // → context (course level only).  Students never have this capability.
+            $sql = "SELECT ra.id
+                      FROM {role_assignments} ra
+                      JOIN {role_capabilities} rc ON rc.roleid = ra.roleid
+                      JOIN {context} ctx           ON ctx.id   = ra.contextid
+                     WHERE ra.userid        = :userid
+                       AND rc.capability    = :cap
+                       AND rc.permission    = :allow
+                       AND ctx.contextlevel = :courselevel";
+            $hasincourse = $DB->record_exists_sql($sql, [
+                'userid'      => $USER->id,
+                'cap'         => 'local/yucardphoto:viewroster',
+                'allow'       => CAP_ALLOW,
+                'courselevel' => CONTEXT_COURSE,
+            ]);
+
+            if (!$hasincourse) {
+                send_file_not_found();
+            }
+        }
     }
 
     $itemid   = (int) array_shift($args);
@@ -70,8 +106,14 @@ function local_yucardphoto_pluginfile($course, $cm, $context, $filearea, $args, 
         send_file_not_found();
     }
 
-    // Cache for one day — photos rarely change.
-    send_stored_file($file, 86400, 0, $forcedownload, $options);
+    // Cache strategy: allow the browser to cache photos for up to 4 hours
+    // (14400 s).  Moodle's send_stored_file sets Last-Modified and ETag based
+    // on the stored file record, so an instructor who re-uploads a photo will
+    // get a fresh copy on the next request after the cache window expires, or
+    // immediately if the browser sends a conditional request.
+    // 4 hours is a reasonable balance between performance (1000-student roster
+    // only fetches changed photos) and freshness (updated photos visible same day).
+    send_stored_file($file, 14400, 0, false, $options);
 }
 
 /**
@@ -112,13 +154,17 @@ function local_yucardphoto_can_view_roster(context_course $context): bool {
  *   filename   : {sisid}.jpg  (or .png depending on detected mime)
  *
  * If a file for this sisid already exists it is deleted and replaced.
+ * There is always exactly ONE photo record per sisid — this function
+ * enforces that invariant; callers must handle the DB upsert separately.
  *
- * @param  string $sisid     Student/SIS ID — used to name and address the file.
- * @param  string $imagedata Raw binary image data.
- * @param  string $mime      MIME type: 'image/jpeg' or 'image/png'.
- * @return string            Moodle pluginfile URL for the stored photo.
+ * @param  string $sisid       Student/SIS ID — used to name and address the file.
+ * @param  string $imagedata   Raw binary image data.
+ * @param  string $mime        MIME type: 'image/jpeg' or 'image/png'.
+ * @param  int    $uploaded_by Moodle userid who triggered this write.
+ *                             Pass -1 when called from the scheduled task.
+ * @return string  Moodle pluginfile URL (with rev= cache-buster) for the stored photo.
  */
-function local_yucardphoto_store_photo(string $sisid, string $imagedata, string $mime = 'image/jpeg'): string {
+function local_yucardphoto_store_photo(string $sisid, string $imagedata, string $mime = 'image/jpeg', int $uploaded_by = -1): string {
     $syscontext = context_system::instance();
     $fs         = get_file_storage();
     $ext        = ($mime === 'image/png') ? 'png' : 'jpg';
@@ -150,15 +196,19 @@ function local_yucardphoto_store_photo(string $sisid, string $imagedata, string 
         'timemodified' => time(),
     ];
 
-    $fs->create_file_from_string($filerecord, $imagedata);
+    $storedfile = $fs->create_file_from_string($filerecord, $imagedata);
 
     // Build and return the pluginfile URL.
-    return moodle_url::make_pluginfile_url(
+    // Append rev= (timemodified) so re-uploaded photos always get a fresh URL
+    // that bypasses any browser-cached copy of the previous photo.
+    $url = moodle_url::make_pluginfile_url(
         $syscontext->id,
         'local_yucardphoto',
         'photos',
         $itemid,
         '/',
         $filename
-    )->out(false);
+    );
+    $url->param('rev', $storedfile->get_timemodified());
+    return $url->out(false);
 }

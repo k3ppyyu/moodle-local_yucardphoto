@@ -64,12 +64,28 @@ class yucardphoto_upload_form extends moodleform {
         $mform->setType('usersearch', PARAM_TEXT);
         $mform->addHelpButton('usersearch', 'searchstudent', 'local_yucardphoto');
 
-        // Hidden userid — populated by JS after user selects from the results list.
+        // Selected user display + hidden userid — all in one html block we fully control.
+        // We do NOT use addElement('hidden',...) because Moodle's renderer places hidden
+        // fields at the bottom of the form with an unpredictable DOM position; instead we
+        // embed the hidden input right here so JS can reliably find it by id="ycp-userid".
+        $selectlabel = get_string('selectuser', 'local_yucardphoto');
+        $mform->addElement('html',
+            '<input type="hidden" name="userid" id="ycp-userid" value="0">' .
+            '<div class="form-group row fitem mb-3">' .
+            '<div class="col-md-3 col-form-label d-flex pb-0 pr-md-0">' .
+            '<label class="d-inline word-break">' . s($selectlabel) . '</label>' .
+            '</div>' .
+            '<div class="col-md-9 form-inline felement">' .
+            '<div id="ycp-selected-student" class="alert alert-secondary py-2 mb-0 w-100" ' .
+            'style="min-height:2.4rem;">' .
+            '<span class="text-muted fst-italic">' . get_string('noneselected', 'local_yucardphoto') . '</span>' .
+            '</div>' .
+            '</div>' .
+            '</div>'
+        );
+        // Keep a moodleform hidden too so validation picks it up from $data->userid.
         $mform->addElement('hidden', 'userid', 0);
         $mform->setType('userid', PARAM_INT);
-
-        // Selected user display (read-only, updated by JS).
-        $mform->addElement('static', 'selecteduser', get_string('selectuser', 'local_yucardphoto'), '');
 
         // Photo file upload.
         $mform->addElement('filepicker', 'photofile',
@@ -129,11 +145,20 @@ if ($form->is_cancelled()) {
             } else {
                 try {
                     $imagedata = $draftfile->get_content();
-                    $sisid     = !empty($user->idnumber) ? $user->idnumber : 'uid_' . $user->id;
-                    $fileurl   = local_yucardphoto_store_photo($sisid, $imagedata, $mime);
-                    $ext       = ($mime === 'image/png') ? 'png' : 'jpg';
-                    $now       = time();
+                    // At York the SIS ID is stored in idnumber. Fall back to
+                    // uid_{id} only for accounts that have no idnumber set.
+                    $sisid = !empty($user->idnumber) ? $user->idnumber : 'uid_' . $user->id;
 
+                    // Store photo — pass $USER->id so the record shows who
+                    // manually uploaded this photo (distinguishes from task = -1).
+                    $fileurl = local_yucardphoto_store_photo($sisid, $imagedata, $mime, $USER->id);
+                    $ext     = ($mime === 'image/png') ? 'png' : 'jpg';
+                    $now     = time();
+
+                    // Enforce one record per sisid: always upsert.
+                    // The UNIQUE index on sisid prevents duplicates at the DB
+                    // level; we use get_record + update/insert to keep the same
+                    // row (preserving timecreated and the original task history).
                     $existing = $DB->get_record('local_yucardphoto', ['sisid' => $sisid]);
                     if ($existing) {
                         $existing->firstname          = $user->firstname;
@@ -141,6 +166,7 @@ if ($form->is_cancelled()) {
                         $existing->moodle_file_url    = $fileurl;
                         $existing->yucard_image_path  = "/{$sisid}.{$ext}";
                         $existing->yucard_lastupdated = $now;
+                        $existing->uploaded_by        = $USER->id;
                         $existing->timemodified       = $now;
                         $DB->update_record('local_yucardphoto', $existing);
                     } else {
@@ -151,6 +177,7 @@ if ($form->is_cancelled()) {
                             'moodle_file_url'    => $fileurl,
                             'yucard_image_path'  => "/{$sisid}.{$ext}",
                             'yucard_lastupdated' => $now,
+                            'uploaded_by'        => $USER->id,
                             'timecreated'        => $now,
                             'timemodified'       => $now,
                         ]);
@@ -174,10 +201,24 @@ if ($form->is_cancelled()) {
 // -------------------------------------------------------------------------
 $ajaxsearch = optional_param('ajaxsearch', '', PARAM_TEXT);
 if ($ajaxsearch !== '') {
-    require_sesskey();
-    $term    = '%' . $DB->sql_like_escape(trim($ajaxsearch)) . '%';
-    $users   = $DB->get_records_sql(
-        "SELECT id, firstname, lastname, username, idnumber, email
+    // Validate sesskey manually so it works with GET requests.
+    if (!confirm_sesskey()) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'invalidsesskey', 'users' => []]);
+        die;
+    }
+
+    $searchterm = trim($ajaxsearch);
+    if (core_text::strlen($searchterm) < 3) {
+        header('Content-Type: application/json');
+        echo json_encode(['users' => []]);
+        die;
+    }
+
+    $term  = '%' . $DB->sql_like_escape($searchterm) . '%';
+    $users = $DB->get_records_sql(
+        "SELECT id, firstname, lastname, username, idnumber, email,
+                firstnamephonetic, lastnamephonetic, middlename, alternatename
            FROM {user}
           WHERE deleted = 0
             AND (" . $DB->sql_like('firstname', ':t1', false) . "
@@ -186,8 +227,9 @@ if ($ajaxsearch !== '') {
              OR  " . $DB->sql_like('idnumber',  ':t4', false) . ")
           ORDER BY lastname, firstname",
         ['t1' => $term, 't2' => $term, 't3' => $term, 't4' => $term],
-        0, 20
+        0, 30
     );
+
     $results = [];
     foreach ($users as $u) {
         // Look up any existing stored photo for this user (matched by idnumber = sisid).
@@ -198,9 +240,10 @@ if ($ajaxsearch !== '') {
                 $photourl = $rec;
             }
         }
+        $identifier = !empty($u->idnumber) ? $u->idnumber : $u->username;
         $results[] = [
-            'id'       => $u->id,
-            'label'    => fullname($u) . ' (' . s($u->idnumber ?: $u->username) . ')',
+            'id'       => (int)$u->id,
+            'label'    => fullname($u) . ' (' . $identifier . ')',
             'email'    => $u->email,
             'photourl' => $photourl,
         ];
@@ -233,8 +276,11 @@ $templatecontext = [
 $PAGE->requires->js_call_amd('local_yucardphoto/upload', 'init', [[
     'ajaxurl'       => (new moodle_url('/local/yucardphoto/upload.php'))->out(false),
     'sesskey'       => sesskey(),
-    'noresult'      => get_string('usernotfound',  'local_yucardphoto'),
-    'overridelabel' => get_string('overridephoto', 'local_yucardphoto'),
+    'noresult'      => get_string('usernotfound',   'local_yucardphoto'),
+    'overridelabel' => get_string('overridephoto',  'local_yucardphoto'),
+    'searchbtn'     => get_string('search',         'local_yucardphoto'),
+    'minchars'      => get_string('minsearchchars', 'local_yucardphoto'),
+    'selectedlabel' => get_string('selectuser',     'local_yucardphoto'),
 ]]);
 
 // ---- Output -------------------------------------------------------------

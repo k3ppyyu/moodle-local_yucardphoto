@@ -14,14 +14,13 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * AMD module: user-search autocomplete for the photo upload page.
+ * AMD module: user-search for the photo upload page.
  *
- * Listens on the usersearch text input, fires a debounced AJAX request to
+ * A SEARCH button (and Enter key) triggers an AJAX request to
  * upload.php?ajaxsearch=… and renders a Bootstrap list-group dropdown of
- * matching users below the field.  Selecting a user populates the hidden
- * #id_userid field, shows the user's name in the static "Selected student"
- * field, and fetches + displays any existing photo already stored for that
- * student so the admin can see what they are about to override.
+ * matching users.  Selecting a user populates the hidden #id_userid field,
+ * shows the user's details in the static "Selected student" field, and
+ * previews any existing photo already stored for that student.
  *
  * @module     local_yucardphoto/upload
  * @copyright  2026 ED&IT, York University
@@ -29,72 +28,118 @@
  */
 
 /**
- * Initialise the upload page autocomplete and photo preview.
+ * Initialise the upload page user-search and photo preview.
  *
  * @param {Object} config
- * @param {string} config.ajaxurl   URL of upload.php (the AJAX endpoint).
- * @param {string} config.sesskey   Moodle session key.
- * @param {string} config.noresult  Localised "no user found" message.
+ * @param {string} config.ajaxurl      URL of upload.php (the AJAX endpoint).
+ * @param {string} config.sesskey      Moodle session key.
+ * @param {string} config.noresult     Localised "no user found" message.
  * @param {string} config.overridelabel Localised "Current photo (will be replaced)" label.
+ * @param {string} config.searchbtn    Localised "Search" button label.
+ * @param {string} config.minchars     Localised "minimum characters" warning.
+ * @param {string} config.selectedlabel Localised "Selected student" label for fallback banner.
  */
 export const init = (config) => {
-    // Insert the autocomplete result container immediately after the search input.
     const searchInput = document.getElementById('id_usersearch');
     if (!searchInput) {
         return;
     }
 
-    // Results dropdown container.
+    // ── Inject SEARCH button right after the input ──────────────────────
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'ycp-search-btn';
+    btn.className = 'btn btn-primary mt-1 mb-1';
+    btn.textContent = config.searchbtn || 'Search';
+    searchInput.insertAdjacentElement('afterend', btn);
+
+    // ── Results dropdown container (after the button) ───────────────────
     const resultsDiv = document.createElement('div');
     resultsDiv.id = 'ycp-results';
     resultsDiv.style.cssText = 'position:relative;z-index:1050';
-    searchInput.insertAdjacentElement('afterend', resultsDiv);
+    btn.insertAdjacentElement('afterend', resultsDiv);
 
-    // Current-photo preview container (inserted after the static selecteduser field).
-    const staticField = document.getElementById('id_selecteduser');
+    // ── Current-photo preview container ─────────────────────────────────
+    // Inserted after the #ycp-selected-student display row.
+    const selectedBox = document.getElementById('ycp-selected-student');
     let previewDiv = null;
-    if (staticField) {
+    if (selectedBox) {
         previewDiv = document.createElement('div');
         previewDiv.id = 'ycp-photo-preview';
         previewDiv.className = 'mt-2 mb-2';
-        staticField.closest('.form-group, .fitem')?.insertAdjacentElement('afterend', previewDiv);
+        selectedBox.closest('.fitem, .form-group')?.insertAdjacentElement('afterend', previewDiv);
     }
 
-    let timer = null;
+    // ── Trigger search on button click ───────────────────────────────────
+    btn.addEventListener('click', () => triggerSearch());
 
-    // ---- Keyup handler --------------------------------------------------
-    searchInput.addEventListener('input', () => {
-        clearTimeout(timer);
-        const term = searchInput.value.trim();
-        if (term.length < 2) {
+    // ── Trigger search on Enter key inside the input ─────────────────────
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            triggerSearch();
+        }
+    });
+
+    // ── Close dropdown on outside click ─────────────────────────────────
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#id_usersearch, #ycp-results, #ycp-search-btn')) {
             resultsDiv.innerHTML = '';
+        }
+    });
+
+    // ── Search orchestration ─────────────────────────────────────────────
+    const triggerSearch = () => {
+        const term = searchInput.value.trim();
+        if (term.length < 3) {
+            renderMessage(config.minchars || 'Please enter at least 3 characters.', 'text-warning');
             return;
         }
-        timer = setTimeout(() => fetchUsers(term), 300);
-    });
+        fetchUsers(term);
+    };
 
-    // ---- Close on outside click -----------------------------------------
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('#id_usersearch, #ycp-results')) {
-            resultsDiv.innerHTML = '';
-        }
-    });
-
-    // ---- Fetch users via AJAX -------------------------------------------
+    // ── Fetch users via AJAX ─────────────────────────────────────────────
     const fetchUsers = (term) => {
-        const url = new URL(config.ajaxurl);
+        // Show spinner.
+        resultsDiv.innerHTML =
+            '<div class="list-group mt-1">' +
+            '<div class="list-group-item text-muted">' +
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' +
+            'Searching\u2026</div></div>';
+
+        btn.disabled = true;
+
+        const url = new URL(config.ajaxurl, window.location.href);
         url.searchParams.set('ajaxsearch', term);
         url.searchParams.set('sesskey', config.sesskey);
 
-        fetch(url.toString(), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(r => r.json())
-            .then(data => renderResults(data.users || []))
-            .catch(() => {
-                resultsDiv.innerHTML = '';
-            });
+        fetch(url.toString(), {
+            headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+        })
+        .then(r => {
+            if (!r.ok) {
+                throw new Error('HTTP ' + r.status);
+            }
+            return r.json();
+        })
+        .then(data => renderResults(data.users || []))
+        .catch((err) => {
+            renderMessage('Search error: ' + err.message, 'text-danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+        });
     };
 
-    // ---- Render dropdown list -------------------------------------------
+    // ── Render a plain message row ────────────────────────────────────────
+    const renderMessage = (msg, cssClass) => {
+        resultsDiv.innerHTML =
+            '<ul class="list-group mt-1">' +
+            '<li class="list-group-item ' + escHtml(cssClass) + '">' + escHtml(msg) + '</li>' +
+            '</ul>';
+    };
+
+    // ── Render dropdown list ──────────────────────────────────────────────
     const renderResults = (users) => {
         resultsDiv.innerHTML = '';
         const ul = document.createElement('ul');
@@ -109,9 +154,24 @@ export const init = (config) => {
         } else {
             users.forEach(u => {
                 const li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-action';
+                li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
                 li.style.cursor = 'pointer';
-                li.textContent = u.label;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = u.label;
+                li.appendChild(nameSpan);
+
+                if (u.photourl) {
+                    const thumb = document.createElement('img');
+                    thumb.src = u.photourl;
+                    thumb.alt = u.label;
+                    thumb.width = 36;
+                    thumb.height = 36;
+                    thumb.className = 'rounded-circle border ms-2';
+                    thumb.style.objectFit = 'cover';
+                    li.appendChild(thumb);
+                }
+
                 li.addEventListener('click', () => selectUser(u));
                 ul.appendChild(li);
             });
@@ -120,37 +180,52 @@ export const init = (config) => {
         resultsDiv.appendChild(ul);
     };
 
-    // ---- Select a user and show current photo preview -------------------
+    // ── Select a user and show current photo preview ──────────────────────
     const selectUser = (u) => {
-        // Populate hidden field and visible label.
-        document.getElementById('id_userid').value = u.id;
-        searchInput.value = u.label;
-
-        const staticEl = document.getElementById('id_selecteduser');
-        if (staticEl) {
-            staticEl.textContent = u.label + ' \u2014 ' + u.email;
+        // Populate the hidden userid field (our own input, id="ycp-userid").
+        const useridField = document.getElementById('ycp-userid');
+        if (useridField) {
+            useridField.value = u.id;
+        }
+        // Also update Moodle's own hidden field if it rendered one, for form validation.
+        const moodleHidden = document.getElementById('id_userid');
+        if (moodleHidden) {
+            moodleHidden.value = u.id;
         }
 
+        // Update the search input to show the selected name.
+        searchInput.value = u.label;
+
+        // Write selection into the dedicated display box rendered by PHP.
+        if (selectedBox) {
+            selectedBox.innerHTML =
+                '<span class="badge bg-success me-2">&#10003; Selected</span>' +
+                '<strong>' + escHtml(u.label) + '</strong>' +
+                ' &mdash; <span class="text-muted">' + escHtml(u.email) + '</span>';
+            selectedBox.classList.remove('alert-secondary');
+            selectedBox.classList.add('alert-success');
+        }
+
+        // Clear the results dropdown.
         resultsDiv.innerHTML = '';
 
-        // Show existing photo if available.
+        // ── Photo preview ──────────────────────────────────────────────────
         if (previewDiv) {
             if (u.photourl) {
                 previewDiv.innerHTML =
                     '<p class="small text-muted mb-1"><strong>' +
                     escHtml(config.overridelabel) +
                     '</strong></p>' +
-                    '<img src="' + escHtml(u.photourl) + '" ' +
-                    'alt="' + escHtml(u.label) + '" ' +
-                    'width="100" height="100" ' +
-                    'class="rounded-circle border" style="object-fit:cover;">';
+                    '<img src="' + escHtml(u.photourl) + '" alt="' + escHtml(u.label) + '" ' +
+                    'width="100" height="100" class="rounded-circle border" style="object-fit:cover;">';
             } else {
-                previewDiv.innerHTML = '';
+                previewDiv.innerHTML =
+                    '<p class="small text-muted mb-1 fst-italic">No existing photo on file for this student.</p>';
             }
         }
     };
 
-    // ---- Simple HTML escaper --------------------------------------------
+    // ── Simple HTML escaper ────────────────────────────────────────────────
     const escHtml = (str) => {
         return String(str)
             .replace(/&/g, '&amp;')

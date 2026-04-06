@@ -142,7 +142,8 @@ class import_yucard_photos extends \core\task\scheduled_task {
                 }
 
                 // Write blob to Moodle file system; get back the pluginfile URL.
-                $fileurl  = local_yucardphoto_store_photo($sisid, $imagedata, $mime);
+                // uploaded_by = -1 signals this was written by the scheduled task.
+                $fileurl  = local_yucardphoto_store_photo($sisid, $imagedata, $mime, -1);
                 $ext      = ($mime === 'image/png') ? 'png' : 'jpg';
                 $filepath = "/{$sisid}.{$ext}";
 
@@ -152,6 +153,7 @@ class import_yucard_photos extends \core\task\scheduled_task {
                     $existing->moodle_file_url    = $fileurl;
                     $existing->yucard_image_path  = $filepath;
                     $existing->yucard_lastupdated = $lastupdated;
+                    $existing->uploaded_by        = -1;
                     $existing->timemodified       = $now;
                     $DB->update_record('local_yucardphoto', $existing);
                     $updated++;
@@ -163,6 +165,7 @@ class import_yucard_photos extends \core\task\scheduled_task {
                         'moodle_file_url'    => $fileurl,
                         'yucard_image_path'  => $filepath,
                         'yucard_lastupdated' => $lastupdated,
+                        'uploaded_by'        => -1,
                         'timecreated'        => $now,
                         'timemodified'       => $now,
                     ]);

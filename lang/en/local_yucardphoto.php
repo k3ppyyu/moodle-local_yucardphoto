@@ -31,24 +31,26 @@ $string['pluginname'] = 'YU Card Photo Roster';
 $string['task_import_yucard_photos'] = 'Import YU Card photos from external database';
 
 // Course setting.
-$string['coursesettings_heading']         = 'Participant Photograph';
+$string['coursesettings_heading']         = 'Photograph Roster';
 $string['coursesettings_heading_desc']    = 'Controls whether the Photo View roster button is shown on the Participants page for this course.';
 $string['enable_photo_view']              = 'Enable Photo View roster';
 $string['enable_photo_view_desc']         = 'When enabled, authorised roles (instructors, managers, etc.) will see a "Photo View" button on the Participants page that opens the YU Card photo roster for this course.';
-$string['enable_photo_view_yes']          = 'Yes — show Photo View button';
-$string['enable_photo_view_no']           = 'No — hide Photo View button';
+$string['enable_photo_view_yes']          = 'Yes';
+$string['enable_photo_view_no']           = 'No';
+$string['enable_photo_view_help']        = 'Yes - Show photo view button, No - Hide photo view button.';
 
 // Participants page.
 $string['photoview']          = 'Photo View';
 $string['photoviewtitle']     = 'Photo Roster — {$a}';
 $string['backtoparticipants'] = 'Back to Participants';
-$string['search']             = 'Search students';
-$string['searchplaceholder']  = 'First name, last name or student ID…';
+$string['search']             = 'Search';
+$string['searchplaceholder']  = 'Search…';
 $string['sortby']             = 'Sort by';
 $string['sortbyfirstname']    = 'First name';
 $string['sortbylastname']     = 'Last name';
 $string['sortbyemail']        = 'Email';
 $string['sortbysisid']        = 'Student ID';
+$string['sortnophoto']        = 'No photo (missing first)';
 $string['perpage']            = 'Photos per page';
 $string['perpage_grid4']      = '4 × 5 (20 per page)';
 $string['perpage_grid_all']   = 'All (max 100 per page)';
@@ -56,6 +58,11 @@ $string['nophotos']           = 'No student photos found for this course.';
 $string['noresults']          = 'No students matched your search.';
 $string['sisid']              = 'Student ID';
 $string['email']              = 'Email';
+$string['studentcount']       = '{$a} student(s) found';
+$string['nophotocount']       = '{$a} student(s) missing a photo';
+$string['showall']            = 'Show all {$a}';
+$string['showpaged']          = 'Show 20 per page';
+$string['students']           = 'Students';
 
 // Upload page.
 $string['uploadphoto']        = 'Upload Student Photo';
@@ -71,6 +78,8 @@ $string['uploadsuccess']      = 'Photo saved successfully for {$a}.';
 $string['uploaderror']        = 'Could not save the photo. Please try again.';
 $string['usernotfound']       = 'No Moodle user matched that search term.';
 $string['invalidfiletype']    = 'Only JPEG and PNG files are accepted.';
+$string['minsearchchars']     = 'Please enter at least 3 characters to search.';
+$string['noneselected']       = 'No student selected yet — search above and click a name.';
 
 // Admin settings.
 $string['settings_heading']        = 'YU Card Photo Import Settings';

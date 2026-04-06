@@ -13,6 +13,7 @@
         <FIELD NAME="moodle_file_url"    TYPE="text"              NOTNULL="false" SEQUENCE="false" COMMENT="Moodle pluginfile URL to the stored photo (set after file is written to the Moodle file system)"/>
         <FIELD NAME="yucard_image_path"  TYPE="text"              NOTNULL="false" SEQUENCE="false" COMMENT="Relative path within the Moodle file area (component/filearea/itemid/filepath/filename)"/>
         <FIELD NAME="yucard_lastupdated" TYPE="int"  LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Unix timestamp of the last time the photo was updated in the source YU Card system"/>
+        <FIELD NAME="uploaded_by"        TYPE="int"  LENGTH="10" NOTNULL="false" SEQUENCE="false" DEFAULT="-1" COMMENT="Moodle userid who last wrote this photo record. -1 = written by the scheduled import task."/>
         <FIELD NAME="timecreated"        TYPE="int"  LENGTH="10" NOTNULL="true"  SEQUENCE="false" DEFAULT="0"/>
         <FIELD NAME="timemodified"       TYPE="int"  LENGTH="10" NOTNULL="true"  SEQUENCE="false" DEFAULT="0"/>
       </FIELDS>

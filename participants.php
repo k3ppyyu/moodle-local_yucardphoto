@@ -41,7 +41,7 @@ $page     = optional_param('page', 0, PARAM_INT);
 $perpage  = optional_param('perpage', 20, PARAM_INT);
 
 // Sanitise sort column to a known safe value.
-$allowedsorts = ['lastname', 'firstname', 'email', 'sisid'];
+$allowedsorts = ['lastname', 'firstname', 'email', 'sisid', 'nophoto'];
 if (!in_array($sort, $allowedsorts)) {
     $sort = 'lastname';
 }
@@ -80,6 +80,7 @@ $PAGE->set_course($course);
 $PAGE->set_pagelayout('incourse');
 $PAGE->set_title(get_string('photoviewtitle', 'local_yucardphoto', $course->fullname));
 $PAGE->set_heading($course->fullname);
+$PAGE->requires->js_call_amd('local_yucardphoto/participants', 'init', [['debounce' => 600]]);
 
 // Breadcrumb: Course > Participants > Photo Roster.
 $PAGE->navbar->add(get_string('participants'), $participantsurl);
@@ -97,7 +98,7 @@ $enrolledusers = get_enrolled_users(
     $context,
     '',          // no capability filter — return all enrolled users
     0,           // all groups
-    'u.id, u.firstname, u.lastname, u.email, u.idnumber',
+    'u.id, u.firstname, u.lastname, u.email, u.idnumber, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename',
     'u.lastname ASC, u.firstname ASC'
 );
 
@@ -118,14 +119,15 @@ if (!empty($sisids)) {
 // Merge into a flat list for display.
 $students = [];
 foreach ($enrolledusers as $user) {
-    $sisid = $user->idnumber ?? '';
-    $photo = $photosbysissid[$sisid] ?? null;
+    $sisid    = $user->idnumber ?? '';
+    $photo    = !empty($sisid) ? ($photosbysissid[$sisid] ?? null) : null;
     $students[] = (object)[
         'userid'    => $user->id,
         'firstname' => $user->firstname,
         'lastname'  => $user->lastname,
         'email'     => $user->email,
         'sisid'     => $sisid,
+        'hasphoto'  => ($photo !== null),
         'photourl'  => $photo ? $photo->moodle_file_url : null,
     ];
 }
@@ -146,6 +148,16 @@ if ($searchterm !== '') {
 // Sort
 // -------------------------------------------------------------------------
 usort($students, function($a, $b) use ($sort) {
+    if ($sort === 'nophoto') {
+        // Students without a photo sort first; within each group sort by lastname.
+        if ($a->hasphoto !== $b->hasphoto) {
+            return $a->hasphoto ? 1 : -1; // no-photo (false) floats up
+        }
+        return strcmp(
+            core_text::strtolower($a->lastname . $a->firstname),
+            core_text::strtolower($b->lastname . $b->firstname)
+        );
+    }
     $va = core_text::strtolower($a->$sort ?? '');
     $vb = core_text::strtolower($b->$sort ?? '');
     return strcmp($va, $vb);
@@ -154,8 +166,9 @@ usort($students, function($a, $b) use ($sort) {
 // -------------------------------------------------------------------------
 // Pagination
 // -------------------------------------------------------------------------
-$totalcount = count($students);
-$students   = array_slice(array_values($students), $page * $perpage, $perpage);
+$totalcount   = count($students);
+$nophotocount = count(array_filter($students, fn($s) => !$s->hasphoto));
+$students     = array_slice(array_values($students), $page * $perpage, $perpage);
 
 $paging = new paging_bar($totalcount, $page, $perpage, new moodle_url($pageurl,
     ['search' => $search, 'sort' => $sort, 'perpage' => $perpage, 'id' => $courseid]));
@@ -167,27 +180,40 @@ $paging = new paging_bar($totalcount, $page, $perpage, new moodle_url($pageurl,
 // Default photo placeholder (Moodle's standard user silhouette).
 $defaultphoto = $OUTPUT->image_url('u/f1')->out(false);
 
-// ---- Sort dropdown options ----------------------------------------------
+// ---- Sort dropdown options — first entry is the placeholder ---------------
 $sortdefinitions = [
     'lastname'  => get_string('sortbylastname',  'local_yucardphoto'),
     'firstname' => get_string('sortbyfirstname', 'local_yucardphoto'),
     'email'     => get_string('sortbyemail',     'local_yucardphoto'),
     'sisid'     => get_string('sortbysisid',     'local_yucardphoto'),
+    'nophoto'   => get_string('sortnophoto',     'local_yucardphoto'),
 ];
 $sortoptions = [];
+// Prepend the disabled placeholder shown when nothing custom is selected.
+$sortoptions[] = [
+    'value'       => '',
+    'label'       => get_string('sortby', 'local_yucardphoto'),
+    'selected'    => false,
+    'placeholder' => true,
+];
 foreach ($sortdefinitions as $value => $label) {
-    $sortoptions[] = ['value' => $value, 'label' => $label, 'selected' => ($value === $sort)];
+    $sortoptions[] = ['value' => $value, 'label' => $label, 'selected' => ($value === $sort), 'placeholder' => false];
 }
 
-// ---- Per-page dropdown options ------------------------------------------
-$perpageDefinitions = [
-    20  => get_string('perpage_grid4',    'local_yucardphoto'),
-    100 => get_string('perpage_grid_all', 'local_yucardphoto'),
-];
-$perpageoptions = [];
-foreach ($perpageDefinitions as $value => $label) {
-    $perpageoptions[] = ['value' => $value, 'label' => $label, 'selected' => ($value === $perpage)];
-}
+// ---- Show-all / show-paged link -----------------------------------------
+// When viewing paged (perpage=20, default) show a "Show all N" link.
+// When already showing all, show a "Show 20 per page" link back.
+$isshowingall  = ($perpage >= 100);
+$showalllabel  = $isshowingall
+    ? get_string('showpaged', 'local_yucardphoto')
+    : get_string('showall',   'local_yucardphoto', $totalcount);
+$showallurl    = (new moodle_url($pageurl, [
+    'id'      => $courseid,
+    'search'  => $search,
+    'sort'    => $sort,
+    'perpage' => $isshowingall ? 20 : 100,
+    'page'    => 0,
+]))->out(false);
 
 // ---- Student rows -------------------------------------------------------
 $studentrows = [];
@@ -198,7 +224,9 @@ foreach ($students as $student) {
         'sisid'     => s($student->sisid),
         'email'     => s($student->email),
         'photourl'  => $student->photourl ?: $defaultphoto,
-        'alttext'   => s(fullname($student)),
+        'alttext'   => s($student->firstname . ' ' . $student->lastname),
+        'hasphoto'  => $student->hasphoto,
+        'nophoto'   => !$student->hasphoto,
     ];
 }
 
@@ -223,14 +251,16 @@ $templatecontext = [
     'formaction'        => $pageurl->out(false),
     'courseid'          => $courseid,
     'searchvalue'       => s($search),
-    'searchlabel'       => get_string('search',            'local_yucardphoto'),
+    'searchlabel'       => get_string('search', 'local_yucardphoto'),
     'searchplaceholder' => get_string('searchplaceholder', 'local_yucardphoto'),
     'sortoptions'       => $sortoptions,
-    'sortlabel'         => get_string('sortby',    'local_yucardphoto'),
-    'perPageOptions'    => $perpageoptions,
-    'perpagelabel'      => get_string('perpage',   'local_yucardphoto'),
     'searchbtnlabel'    => get_string('search',    'local_yucardphoto'),
-    'countlabel'        => get_string('countusers', 'moodle', $totalcount),
+    'countlabel'        => get_string('studentcount',   'local_yucardphoto', $totalcount),
+    'hasnophoto'        => ($nophotocount > 0),
+    'nophotolabel'      => get_string('nophotocount',   'local_yucardphoto', $nophotocount),
+    'showallurl'        => $showallurl,
+    'showalllabel'      => $showalllabel,
+    'isshowingall'      => $isshowingall,
     'hasstudents'       => !empty($studentrows),
     'students'          => $studentrows,
     'noresultsmsg'      => $noresultsmsg,

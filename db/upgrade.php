@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version info for local_yucardphoto
+ * Upgrade steps for local_yucardphoto.
  *
  * @package   local_yucardphoto
  * @copyright 2026 ED&IT, York University
@@ -24,8 +24,13 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026040601;
-$plugin->requires  = 2025100600; // Moodle 5.1.
-$plugin->release   = '1.0.1 (Build: 2026040601)';
-$plugin->component = 'local_yucardphoto';
-$plugin->maturity  = MATURITY_STABLE;
+/**
+ * Upgrade the local_yucardphoto plugin.
+ *
+ * @param  int  $oldversion
+ * @return bool
+ */
+function xmldb_local_yucardphoto_upgrade(int $oldversion): bool {
+    // No upgrade steps yet — all schema changes are in install.xml.
+    return true;
+}
