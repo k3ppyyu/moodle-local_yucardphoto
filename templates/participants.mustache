@@ -91,7 +91,7 @@
 {{! ── Page heading ─────────────────────────────────────────────────────── }}
 <div class="ycp-page-header mb-2">
     <h2 class="mb-2">{{pagetitle}}</h2>
-    <a href="{{backurl}}" class="btn btn-outline-secondary btn-sm">
+    <a href="{{backurl}}" class="btn btn-outline-secondary">
         {{#pix}} t/left, core {{/pix}}
         {{backlabel}}
     </a>
@@ -106,16 +106,12 @@
           data-region="ycp-controls">
         <input type="hidden" name="id" value="{{courseid}}">
 
-        {{! Single row: search input (left, fixed width) + sort dropdown (right, hugging margin) }}
         <div class="d-flex align-items-center gap-2 w-100">
 
-            {{! Search — fixed max-width so X appearing never causes reflow }}
+            {{! Search — standard Bootstrap 5 input-group prepend pattern }}
             <div style="max-width:22rem; width:100%;">
-                <div class="input-group input-group-sm searchbar rounded" role="search">
-                    <label for="ycp-search">
-                        <span class="visually-hidden">{{searchlabel}}</span>
-                    </label>
-                    <span class="input-group-text border-end-0 bg-transparent pe-1" aria-hidden="true">
+                <div class="input-group" role="search">
+                    <span class="input-group-text" id="ycp-search-addon" aria-hidden="true">
                         {{#pix}} a/search, core {{/pix}}
                     </span>
                     <input type="search"
@@ -123,11 +119,11 @@
                            name="search"
                            value="{{searchvalue}}"
                            placeholder="{{searchplaceholder}}"
-                           class="form-control form-control-sm withclear border-start-0 ps-0"
-                           autocomplete="off">
-                    {{! Clear button always in DOM — invisible (not hidden) when no search,
-                        so the input width never changes when it appears/disappears }}
-                    <button class="btn btn-clear btn-sm"
+                           class="form-control"
+                           autocomplete="off"
+                           aria-label="{{searchlabel}}"
+                           aria-describedby="ycp-search-addon">
+                    <button class="btn btn-outline-secondary btn-clear"
                             id="ycp-clear-search"
                             type="button"
                             style="{{^hassearch}}visibility:hidden;{{/hassearch}}"
@@ -138,10 +134,10 @@
                 </div>
             </div>
 
-            {{! Sort by — hugs right, placeholder-style first option }}
+            {{! Sort by — default form-select size, hugs right }}
             <div class="ms-auto flex-shrink-0">
                 <label for="ycp-sort" class="visually-hidden">{{#str}} sortby, local_yucardphoto {{/str}}</label>
-                <select id="ycp-sort" name="sort" class="form-select form-select-sm">
+                <select id="ycp-sort" name="sort" class="form-select">
                     {{#sortoptions}}
                         {{#placeholder}}
                         <option value="" disabled{{^selected}} selected{{/selected}}>{{label}}</option>
@@ -227,4 +223,3 @@
     {{/hasstudents}}
 
 </div>{{! end .ycp-students-section }}
-
