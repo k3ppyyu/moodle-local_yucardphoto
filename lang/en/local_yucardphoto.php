@@ -41,7 +41,7 @@ $string['enable_photo_view_help']        = 'Yes - Show photo view button, No - H
 
 // Participants page.
 $string['photoview']           = 'Photograph Roster';
-$string['photoviewtitle']      = 'Photograph Roster — {$a}';
+$string['photoviewtitle']      = 'Photograph Roster - {$a}';
 $string['viewphoto']           = 'View Photo';
 $string['backtoparticipants'] = 'Participants';
 $string['search']             = 'Search';
@@ -64,11 +64,11 @@ $string['nophotocount']       = '{$a} student(s) missing a photo';
 $string['showall']            = 'Show all {$a}';
 $string['showpaged']          = 'Show 20 per page';
 $string['students']           = 'Students';
-$string['pageinfo']           = 'This page shows the photo roster for enrolled students in this course. Use the search box to find students by first name, last name, or student ID. Use the Sort by dropdown to change the order. Students without a photo on file are highlighted — click the warning badge to view them first.';
+$string['pageinfo']           = 'This page shows the photo roster for enrolled students in this course. Use the search box to find students by first name, last name, or student ID. Use the Sort by dropdown to change the order. Students without a photo on file are highlighted - click the warning badge to view them first.';
 
 // Upload page.
 $string['uploadphoto']        = 'Upload Student Photo';
-$string['uploadphototitle']   = 'YU Card Photo — Manual Upload';
+$string['uploadphototitle']   = 'YU Card Photo - Manual Upload';
 $string['searchstudent']      = 'Search Moodle user';
 $string['searchstudent_help'] = 'Enter a username, student ID (profile field), first name or last name to find a Moodle user.';
 $string['selectuser']         = 'Select student';
@@ -81,7 +81,7 @@ $string['uploaderror']        = 'Could not save the photo. Please try again.';
 $string['usernotfound']       = 'No Moodle user matched that search term.';
 $string['invalidfiletype']    = 'Only JPEG and PNG files are accepted.';
 $string['minsearchchars']     = 'Please enter at least 3 characters to search.';
-$string['noneselected']       = 'No student selected yet — search above and click a name.';
+$string['noneselected']       = 'No student selected yet - search above and click a name.';
 
 // Admin settings.
 $string['settings_heading']        = 'YU Card Photo Import Settings';

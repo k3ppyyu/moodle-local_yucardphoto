@@ -37,61 +37,22 @@
  * Initialise the participants page controls.
  *
  * @param {Object} config
- * @param {number} config.debounce  Milliseconds to wait after last keyup before submitting (default 600).
+ * @param {number} config.debounce  Unused — kept for API compatibility.
  */
 export const init = (config) => {
     const cfg = Object.assign({debounce: 600}, config || {});
+    // Debounce retained for API compatibility but no longer used.
+    void cfg;
 
     const form = document.querySelector('[data-region="ycp-controls"]');
     if (!form) {
         return;
     }
 
-    const searchInput = document.getElementById('ycp-search');
     const sortSelect = document.getElementById('ycp-sort');
 
     // ── Sort dropdown: submit immediately on change ───────────────────────
     if (sortSelect) {
         sortSelect.addEventListener('change', () => form.submit());
-    }
-
-    // ── Search input: debounced keyup ─────────────────────────────────────
-    if (searchInput) {
-        let timer = null;
-
-        searchInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                clearTimeout(timer);
-                form.submit();
-                return;
-            }
-            if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab'].includes(e.key)) {
-                return;
-            }
-            clearTimeout(timer);
-            timer = setTimeout(() => form.submit(), cfg.debounce);
-        });
-
-        // ── X clear button — use visibility (not d-none) so layout never shifts ──
-        const clearBtn = document.getElementById('ycp-clear-search');
-
-        const updateClearBtn = () => {
-            if (!clearBtn) {
-                return;
-            }
-            clearBtn.style.visibility = searchInput.value.trim() !== '' ? 'visible' : 'hidden';
-        };
-
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                searchInput.value = '';
-                updateClearBtn();
-                form.submit();
-            });
-        }
-
-        searchInput.addEventListener('input', updateClearBtn);
-        // Set correct initial state (server may have rendered it visible or hidden).
-        updateClearBtn();
     }
 };

@@ -217,21 +217,22 @@ $showallurl   = (new moodle_url($pageurl, [
 // ---- No-photo sort link (replaces dropdown option) ----------------------
 $nophotourl = (new moodle_url($pageurl, [
     'id'      => $courseid,
-    'search'  => '',        // clear search — show full roster sorted by missing
+    'search'  => '',
     'sort'    => 'nophoto',
     'perpage' => $perpage,
     'page'    => 0,
 ]))->out(false);
 
-// ---- Clear-search URL (X button) ----------------------------------------
-// Resets search term but preserves sort and perpage.
-$clearurl = ($searchterm !== '') ? (new moodle_url($pageurl, [
+// ---- Clear search URL ---------------------------------------------------
+// Shown when a search is active so the user can get back to all students.
+$clearsearchurl = ($searchterm !== '') ? (new moodle_url($pageurl, [
     'id'      => $courseid,
     'search'  => '',
     'sort'    => $sort,
     'perpage' => $perpage,
     'page'    => 0,
 ]))->out(false) : '';
+
 
 // ---- Student rows -------------------------------------------------------
 $studentrows = [];
@@ -272,10 +273,9 @@ $templatecontext = [
     'searchlabel'       => get_string('search', 'local_yucardphoto'),
     'searchplaceholder' => get_string('searchplaceholder', 'local_yucardphoto'),
     'sortoptions'       => $sortoptions,
-    'searchbtnlabel'    => get_string('search', 'local_yucardphoto'),
-    'hassearch'         => ($searchterm !== ''),
-    'clearurl'          => $clearurl,
     'countlabel'        => get_string('studentcount', 'local_yucardphoto', $totalcount),
+    'issearching'       => ($searchterm !== ''),
+    'clearsearchurl'    => $clearsearchurl,
     'hasnophoto'        => ($nophotocount > 0),
     'nophotolabel'      => get_string('nophotocount', 'local_yucardphoto', $nophotocount),
     'nophotourl'        => $nophotourl,

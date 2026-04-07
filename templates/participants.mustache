@@ -136,12 +136,9 @@
 
         <div class="d-flex align-items-center gap-2 w-100">
 
-            {{! Search — standard Bootstrap 5 input-group prepend pattern }}
+            {{! Search — input left, magnifying glass button appended right as submit }}
             <div class="mt-2 ycp-search-wrapper">
                 <div class="input-group" role="search">
-                    <span class="input-group-text" id="ycp-search-addon" aria-hidden="true">
-                        {{#pix}} a/search, core {{/pix}}
-                    </span>
                     <input type="search"
                            id="ycp-search"
                            name="search"
@@ -150,14 +147,12 @@
                            class="form-control"
                            autocomplete="off"
                            aria-label="{{searchlabel}}"
-                           aria-describedby="ycp-search-addon">
-                    <button class="btn btn-outline-secondary btn-clear"
-                            id="ycp-clear-search"
-                            type="button"
-                            style="{{^hassearch}}visibility:hidden;{{/hassearch}}"
-                            aria-label="{{#str}} clearsearch, core {{/str}}">
-                        {{#pix}} e/cancel, core {{/pix}}
-                        <span class="visually-hidden">{{#str}} clearsearch, core {{/str}}</span>
+                           aria-describedby="ycp-search-btn">
+                    <button class="btn btn-outline-secondary"
+                            id="ycp-search-btn"
+                            type="submit"
+                            aria-label="{{searchlabel}}">
+                        {{#pix}} a/search, core {{/pix}}
                     </button>
                 </div>
             </div>
@@ -180,9 +175,14 @@
         </div>
     </form>
 
-    {{! ── Result count + missing photo badge ─────────────────────────── }}
-    <div class="d-flex flex-wrap align-items-center gap-3 mt-4 mb-4">
+    {{! ── Result count + clear search + missing photo badge ────────────── }}
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-4">
         <span class="text-muted small">{{countlabel}}</span>
+        {{#issearching}}
+        <a href="{{clearsearchurl}}" class="small text-decoration-none">
+            {{#pix}} e/cancel, core {{/pix}} {{#str}} clearsearch, core {{/str}}
+        </a>
+        {{/issearching}}
         {{#hasnophoto}}
         <a href="{{nophotourl}}"
            class="badge bg-warning text-dark text-decoration-none"
