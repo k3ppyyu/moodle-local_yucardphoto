@@ -40,9 +40,10 @@ $string['enable_photo_view_no']           = 'No';
 $string['enable_photo_view_help']        = 'Yes - Show photo view button, No - Hide photo view button.';
 
 // Participants page.
-$string['photoview']          = 'Photo View';
-$string['photoviewtitle']     = 'Photo Roster — {$a}';
-$string['backtoparticipants'] = 'Back to Participants';
+$string['photoview']           = 'Photograph Roster';
+$string['photoviewtitle']      = 'Photograph Roster — {$a}';
+$string['viewphoto']           = 'View Photo';
+$string['backtoparticipants'] = 'Participants';
 $string['search']             = 'Search';
 $string['searchplaceholder']  = 'Search…';
 $string['sortby']             = 'Sort by';
@@ -63,6 +64,7 @@ $string['nophotocount']       = '{$a} student(s) missing a photo';
 $string['showall']            = 'Show all {$a}';
 $string['showpaged']          = 'Show 20 per page';
 $string['students']           = 'Students';
+$string['pageinfo']           = 'This page shows the photo roster for enrolled students in this course. Use the search box to find students by first name, last name, or student ID. Use the Sort by dropdown to change the order. Students without a photo on file are highlighted — click the warning badge to view them first.';
 
 // Upload page.
 $string['uploadphoto']        = 'Upload Student Photo';

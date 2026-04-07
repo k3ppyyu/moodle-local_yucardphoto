@@ -14,7 +14,19 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-/* ── Page header ─────────────────────────────────────────────────────────── */
+/* ── Page header icon — override Moodle's .icon 16px default ────────────── */
+.ycp-page-icon img.icon {
+    width: 3rem !important;
+    height: 3rem !important;
+    opacity: .75;
+}
+
+/* ── Header right-side breadcrumb — muted, aligned to baseline ───────────── */
+.ycp-header-nav .breadcrumb {
+    font-size: .875rem;
+}
+
+/* ── Page header action bar ──────────────────────────────────────────────── */
 .ycp-page-header {
     padding-bottom: .5rem;
 }
@@ -53,6 +65,12 @@
 /* ── Sort dropdown — size to content, not stretched ─────────────────────── */
 #ycp-sort {
     width: auto;
+}
+
+/* ── Search input wrapper — constrained width, full-width on small screens ── */
+.ycp-search-wrapper {
+    max-width: 22rem;
+    width: 100%;
 }
 
 

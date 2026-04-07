@@ -88,17 +88,45 @@
     }
 }}
 
-{{! ── Page heading ─────────────────────────────────────────────────────── }}
-<div class="ycp-page-header mb-2">
-    <h2 class="mb-2">{{pagetitle}}</h2>
-    <a href="{{backurl}}" class="btn btn-outline-secondary">
-        {{#pix}} t/left, core {{/pix}}
-        {{backlabel}}
-    </a>
+{{! ── Moodle-style page header: icon + title (left), course breadcrumb (right) ── }}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+    <div class="d-flex align-items-center gap-2">
+        <span class="ycp-page-icon" aria-hidden="true">
+            {{#pix}} photo-camera, local_yucardphoto {{/pix}}
+        </span>
+        <h1 class="h3 mb-0">{{#str}} coursesettings_heading, local_yucardphoto {{/str}}</h1>
+    </div>
+    {{! Course name (links to participants page) → current page name }}
+    <nav aria-label="{{#str}} pagepath, core {{/str}}" class="ycp-header-nav">
+        <ol class="breadcrumb mb-0 small">
+            <li class="breadcrumb-item">
+                <a href="{{backurl}}">{{coursefullname}} {{backlabel}}</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{#str}} coursesettings_heading, local_yucardphoto {{/str}}
+            </li>
+        </ol>
+    </nav>
 </div>
 
-{{! ── Students section ───────────────────────────────────────────────── }}
-<div class="ycp-students-section mt-4">
+{{! ── Back to Participants button — commented out; breadcrumb handles navigation ── }}
+<!--<div class="ycp-page-header mb-3">-->
+<!--    <a href="{{backurl}}" class="btn btn-outline-secondary">-->
+<!--        {{#pix}} t/left, core {{/pix}}-->
+<!--        {{backlabel}}-->
+<!--    </a>-->
+<!--</div> }}-->
+
+{{! ── Page summary alert ─────────────────────────────────────────────────── }}
+<div class="alert alert-info d-flex align-items-start gap-2 mt-4" role="note">
+    <span aria-hidden="true">&#8505;</span>
+    <span>
+        {{#str}} pageinfo, local_yucardphoto {{/str}}
+    </span>
+</div>
+
+{{! ── Students section ───────────────────────────────────────────────────── }}
+<div class="ycp-students-section mt-6">
     <h3 class="mb-3 border-bottom pb-2">{{#str}} students, local_yucardphoto {{/str}}</h3>
 
     {{! ── Controls bar ────────────────────────────────────────────────── }}
@@ -109,7 +137,7 @@
         <div class="d-flex align-items-center gap-2 w-100">
 
             {{! Search — standard Bootstrap 5 input-group prepend pattern }}
-            <div style="max-width:22rem; width:100%;">
+            <div class="mt-2 ycp-search-wrapper">
                 <div class="input-group" role="search">
                     <span class="input-group-text" id="ycp-search-addon" aria-hidden="true">
                         {{#pix}} a/search, core {{/pix}}
@@ -135,7 +163,7 @@
             </div>
 
             {{! Sort by — default form-select size, hugs right }}
-            <div class="ms-auto flex-shrink-0">
+            <div class="mt-2 ms-auto flex-shrink-0">
                 <label for="ycp-sort" class="visually-hidden">{{#str}} sortby, local_yucardphoto {{/str}}</label>
                 <select id="ycp-sort" name="sort" class="form-select">
                     {{#sortoptions}}
@@ -152,8 +180,8 @@
         </div>
     </form>
 
-    {{! ── Result count + missing photo badge (clickable) ─────────────── }}
-    <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-3">
+    {{! ── Result count + missing photo badge ─────────────────────────── }}
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-4 mb-4">
         <span class="text-muted small">{{countlabel}}</span>
         {{#hasnophoto}}
         <a href="{{nophotourl}}"

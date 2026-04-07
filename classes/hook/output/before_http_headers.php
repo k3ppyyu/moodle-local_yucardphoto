@@ -94,7 +94,7 @@ class before_http_headers {
         $PAGE->requires->js_call_amd(
             'local_yucardphoto/photoview_button',
             'init',
-            [['url' => $photourl->out(false), 'label' => get_string('photoview', 'local_yucardphoto')]]
+            [['url' => $photourl->out(false), 'label' => get_string('viewphoto', 'local_yucardphoto')]]
         );
     }
 }
