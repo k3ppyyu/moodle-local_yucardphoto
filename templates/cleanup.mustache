@@ -1,0 +1,208 @@
+{{!
+    Template: local_yucardphoto/cleanup
+    Admin cleanup page for the YU Card Photo Roster plugin.
+}}
+<div class="local-yucardphoto-cleanup">
+
+    {{! Notification after an action }}
+    {{#notification}}
+    <div class="alert alert-{{notiftype}} alert-dismissible fade show" role="alert">
+        {{{notification}}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{#str}}close, core{{/str}}"></button>
+    </div>
+    {{/notification}}
+
+    {{! ── Stats summary card ── }}
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="mb-0">{{#str}}cleanup_stats_heading, local_yucardphoto{{/str}}</h5>
+            <a href="{{settingsurl}}" class="btn btn-outline-secondary">
+                {{#str}}cleanup_back_settings, local_yucardphoto{{/str}}
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3">
+                        <div class="fs-2 fw-bold text-primary">{{totaldb}}</div>
+                        <div class="text-muted small">{{#str}}cleanup_stat_dbrows, local_yucardphoto{{/str}}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3">
+                        <div class="fs-2 fw-bold text-primary">{{totalfiles}}</div>
+                        <div class="text-muted small">{{#str}}cleanup_stat_files, local_yucardphoto{{/str}}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3">
+                        <div class="fs-2 fw-bold {{#orphancount}}text-warning{{/orphancount}}{{^orphancount}}text-success{{/orphancount}}">
+                            {{orphancount}}
+                        </div>
+                        <div class="text-muted small">{{#str}}cleanup_stat_orphans, local_yucardphoto{{/str}}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3">
+                        <div class="fs-2 fw-bold {{#stalecount}}text-warning{{/stalecount}}{{^stalecount}}text-success{{/stalecount}}">
+                            {{stalecount}}
+                        </div>
+                        <div class="text-muted small">{{#str}}cleanup_stat_stale, local_yucardphoto{{/str}}</div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mt-3 mb-0">
+                {{#str}}cleanup_stat_totalsize, local_yucardphoto{{/str}}: <strong>{{totalsize}}</strong>
+            </p>
+        </div>
+    </div>
+
+    {{! ── Orphaned files detail ── }}
+    {{#hasorphans}}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning bg-opacity-10">
+            <h6 class="mb-0">{{#str}}cleanup_orphan_detail, local_yucardphoto{{/str}} ({{orphancount}})</h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{#str}}sisid, local_yucardphoto{{/str}}</th>
+                        <th>{{#str}}cleanup_col_filename, local_yucardphoto{{/str}}</th>
+                        <th>{{#str}}cleanup_col_size, local_yucardphoto{{/str}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#orphanfiles}}
+                    <tr>
+                        <td><code>{{sisid}}</code></td>
+                        <td>{{filename}}</td>
+                        <td>{{size}}</td>
+                    </tr>
+                    {{/orphanfiles}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/hasorphans}}
+
+    {{! ── Stale rows detail ── }}
+    {{#hasstale}}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning bg-opacity-10">
+            <h6 class="mb-0">{{#str}}cleanup_stale_detail, local_yucardphoto{{/str}} ({{stalecount}})</h6>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{#str}}sisid, local_yucardphoto{{/str}}</th>
+                        <th>{{#str}}cleanup_col_firstname, local_yucardphoto{{/str}}</th>
+                        <th>{{#str}}cleanup_col_lastname, local_yucardphoto{{/str}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#stalerows}}
+                    <tr>
+                        <td><code>{{sisid}}</code></td>
+                        <td>{{firstname}}</td>
+                        <td>{{lastname}}</td>
+                    </tr>
+                    {{/stalerows}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/hasstale}}
+
+    {{! ── Action forms ── }}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{#str}}cleanup_actions_heading, local_yucardphoto{{/str}}</h5>
+        </div>
+        <div class="card-body">
+
+            {{! Delete orphans }}
+            {{#hasorphans}}
+            <div class="d-flex align-items-start justify-content-between border-bottom pb-3 mb-3">
+                <div>
+                    <strong>{{#str}}cleanup_action_orphans, local_yucardphoto{{/str}}</strong>
+                    <p class="text-muted small mb-0">{{#str}}cleanup_action_orphans_desc, local_yucardphoto{{/str}}</p>
+                </div>
+                <form method="post" action="{{formaction}}" class="ms-3 flex-shrink-0">
+                    <input type="hidden" name="action"  value="deleteorphans">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="hidden" name="sesskey" value="{{sesskey}}">
+                    <button type="submit" class="btn btn-warning"
+                        onclick="return confirm('{{#str}}cleanup_confirm_orphans, local_yucardphoto{{/str}}')">
+                        {{#str}}cleanup_action_orphans_btn, local_yucardphoto{{/str}}
+                    </button>
+                </form>
+            </div>
+            {{/hasorphans}}
+
+            {{! Delete stale rows }}
+            {{#hasstale}}
+            <div class="d-flex align-items-start justify-content-between border-bottom pb-3 mb-3">
+                <div>
+                    <strong>{{#str}}cleanup_action_stale, local_yucardphoto{{/str}}</strong>
+                    <p class="text-muted small mb-0">{{#str}}cleanup_action_stale_desc, local_yucardphoto{{/str}}</p>
+                </div>
+                <form method="post" action="{{formaction}}" class="ms-3 flex-shrink-0">
+                    <input type="hidden" name="action"  value="deletestale">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="hidden" name="sesskey" value="{{sesskey}}">
+                    <button type="submit" class="btn btn-warning"
+                        onclick="return confirm('{{#str}}cleanup_confirm_stale, local_yucardphoto{{/str}}')">
+                        {{#str}}cleanup_action_stale_btn, local_yucardphoto{{/str}}
+                    </button>
+                </form>
+            </div>
+            {{/hasstale}}
+
+            {{! Delete by SISID }}
+            <div class="border-bottom pb-3 mb-3">
+                <strong>{{#str}}cleanup_action_sisids, local_yucardphoto{{/str}}</strong>
+                <p class="text-muted small mb-2">{{#str}}cleanup_action_sisids_desc, local_yucardphoto{{/str}}</p>
+                <form method="post" action="{{formaction}}"
+                    onsubmit="return this.sisids.value.trim() !== '' && confirm('{{#str}}cleanup_confirm_sisids, local_yucardphoto{{/str}}')">
+                    <input type="hidden" name="action"  value="deletesisids">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="hidden" name="sesskey" value="{{sesskey}}">
+                    <div class="input-group" style="max-width:480px;">
+                        <input type="text" name="sisids" class="form-control"
+                            aria-label="{{#str}}cleanup_action_sisids, local_yucardphoto{{/str}}"
+                            placeholder="{{#str}}cleanup_sisids_placeholder, local_yucardphoto{{/str}}">
+                        <button type="submit" class="btn btn-outline-danger">
+                            {{#str}}cleanup_action_sisids_btn, local_yucardphoto{{/str}}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{! Delete ALL }}
+            {{#hasany}}
+            <div class="d-flex align-items-start justify-content-between">
+                <div>
+                    <strong class="text-danger">{{#str}}cleanup_action_all, local_yucardphoto{{/str}}</strong>
+                    <p class="text-muted small mb-0">{{#str}}cleanup_action_all_desc, local_yucardphoto{{/str}}</p>
+                </div>
+                <form method="post" action="{{formaction}}" class="ms-3 flex-shrink-0">
+                    <input type="hidden" name="action"  value="deleteall">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="hidden" name="sesskey" value="{{sesskey}}">
+                    <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('{{#str}}cleanup_confirm_all, local_yucardphoto{{/str}}')">
+                        {{#str}}cleanup_action_all_btn, local_yucardphoto{{/str}}
+                    </button>
+                </form>
+            </div>
+            {{/hasany}}
+            {{^hasany}}
+            <p class="text-muted mb-0">{{#str}}cleanup_nothing, local_yucardphoto{{/str}}</p>
+            {{/hasany}}
+
+        </div>
+    </div>
+
+</div>
