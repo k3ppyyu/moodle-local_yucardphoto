@@ -61,6 +61,13 @@ if ($hassiteconfig) {
         ''
     ));
 
+    $settings->add(new admin_setting_configcheckbox(
+        'local_yucardphoto/disable_photo_view_globally',
+        get_string('disable_photo_view_globally', 'local_yucardphoto'),
+        get_string('disable_photo_view_globally_desc', 'local_yucardphoto'),
+        0
+    ));
+
     // DB type — default to Oracle for York.
     $settings->add(new admin_setting_configselect(
         'local_yucardphoto/yucard_db_type',

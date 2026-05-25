@@ -85,6 +85,8 @@ $string['noneselected']       = 'No student selected yet - search above and clic
 
 // Admin settings.
 $string['settings_heading']        = 'YU Card Photo Import Settings — Oracle';
+$string['disable_photo_view_globally'] = 'Disable Photo View globally';
+$string['disable_photo_view_globally_desc'] = 'When enabled, the Photo View button is hidden for all courses and direct access to the Photo Roster page is blocked, even if a course has Photo View enabled.';
 $string['yucard_db_type']          = 'External DB type';
 $string['yucard_db_type_desc']     = 'Database driver to use when connecting to the external YU Card system. Select Oracle (OCI8) for the York YU Card database.';
 $string['yucard_db_tns']           = 'Oracle TNS connect string';

@@ -129,6 +129,15 @@ function local_yucardphoto_is_enabled_for_course(int $courseid): bool {
 }
 
 /**
+ * Check whether the Photo View feature is globally disabled by site admin.
+ *
+ * @return bool
+ */
+function local_yucardphoto_is_globally_disabled(): bool {
+    return (bool)get_config('local_yucardphoto', 'disable_photo_view_globally');
+}
+
+/**
  * Return the roles that are allowed to see the Photo View button and roster.
  * Checked against the course context.
  *

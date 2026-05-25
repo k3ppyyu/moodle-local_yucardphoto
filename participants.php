@@ -64,6 +64,10 @@ if (!local_yucardphoto_can_view_roster($context)) {
     throw new \moodle_exception('nopermissions', 'error', '', get_string('photoview', 'local_yucardphoto'));
 }
 
+if (local_yucardphoto_is_globally_disabled()) {
+    throw new \moodle_exception('nopermissions', 'error', '', get_string('photoview', 'local_yucardphoto'));
+}
+
 if (!local_yucardphoto_is_enabled_for_course($courseid)) {
     throw new \moodle_exception('nopermissions', 'error', '', get_string('photoview', 'local_yucardphoto'));
 }

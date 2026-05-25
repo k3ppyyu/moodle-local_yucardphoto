@@ -79,6 +79,10 @@ class before_http_headers {
             return;
         }
 
+        if (\local_yucardphoto_is_globally_disabled()) {
+            return;
+        }
+
         // Check capability and course setting.
         if (!\local_yucardphoto_can_view_roster($context)) {
             return;
