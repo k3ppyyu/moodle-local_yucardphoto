@@ -74,6 +74,7 @@ class import_yucard_photos extends \core\task\scheduled_task {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/local/yucardphoto/lib.php');
+        $taskstart = microtime(true);
 
         // ── Config ───────────────────────────────────────────────────────
         $dbtype   = get_config('local_yucardphoto', 'yucard_db_type')    ?: 'oci';
@@ -90,6 +91,10 @@ class import_yucard_photos extends \core\task\scheduled_task {
         $colsisid   = get_config('local_yucardphoto', 'yucard_col_sisid')   ?: 'SISID';
         $colphoto   = get_config('local_yucardphoto', 'yucard_col_photo')   ?: 'PHOTO';
         $colupdated = get_config('local_yucardphoto', 'yucard_col_updated') ?: 'PHOTOMODIFIEDDATE';
+        $batchsize  = (int)get_config('local_yucardphoto', 'yucard_batch_size');
+        if ($batchsize <= 0) {
+            $batchsize = 500;
+        }
 
         if (empty($dbtns) || empty($dbuser) || empty($dbtable)) {
             mtrace('local_yucardphoto: external DB not configured — skipping import.');
@@ -145,7 +150,7 @@ class import_yucard_photos extends \core\task\scheduled_task {
         // Without this, Oracle may return "14-APR-26" which strtotime() cannot parse,
         // causing $lastupdated to be null and every row to appear as needing an update.
         $metasql  = "SELECT {$colsisid}, TO_CHAR({$colupdated}, 'YYYY-MM-DD HH24:MI:SS') AS {$colupdated}
-                       FROM {$dbschema}.{$dbtable};
+                       FROM {$dbschema}.{$dbtable}";
         $metamap  = $this->query_metadata($extdb, $dbtype, $metasql, $colsisidlc, $colupdatedlc);
 
         mtrace("local_yucardphoto: received " . count($metamap) . " rows of metadata.");
@@ -192,85 +197,114 @@ class import_yucard_photos extends \core\task\scheduled_task {
         $nousers   = 0;
 
         // ── Phase 4: Fetch each BLOB individually for changed rows ──────────
-        // Each BLOB is fetched in its own short-lived query so Oracle never
-        // has to hold a large deferred cursor open across hundreds of loads.
-        foreach ($needsupdate as $sisid => $lastupdated) {
-            // Bind the SISID parameter to avoid SQL injection and let Oracle reuse the parse.
-            $blobsql = "SELECT {$colphoto}
-                          FROM {$dbschema}.{$dbtable}
-                         WHERE {$colsisid} = :sisid";
+        // Process in fixed-size chunks so long initial imports expose progress and timings.
+        $chunks = array_chunk($needsupdate, $batchsize, true);
+        $totalbatches = count($chunks);
+        if ($totalbatches > 0) {
+            mtrace("local_yucardphoto: processing " . count($needsupdate) . " photos in {$totalbatches} batch(es) of up to {$batchsize}.");
+        }
 
-            $imagedata = $this->fetch_single_blob($extdb, $dbtype, $blobsql, $sisid);
+        foreach ($chunks as $batchindex => $batchrows) {
+            $batchno = $batchindex + 1;
+            $batchstart = microtime(true);
+            $batchinsertedstart = $inserted;
+            $batchupdatedstart = $updated;
+            $batchskippedstart = $skipped;
+            $batchnousersstart = $nousers;
+            $batcherrorsstart = $errors;
+            mtrace("local_yucardphoto: starting batch {$batchno}/{$totalbatches} (" . count($batchrows) . " photos).");
 
-            if (empty($imagedata)) {
-                mtrace("  WARN: empty BLOB for sisid={$sisid}, skipping.");
-                $skipped++;
-                continue;
-            }
+            foreach ($batchrows as $sisid => $lastupdated) {
+                // Skip unknown users before fetching any BLOB data.
+                if (!isset($userbyid[$sisid])) {
+                    $nousers++;
+                    $skipped++;
+                    mtrace("  INFO: no Moodle user with idnumber={$sisid} — skipping photo import for now.");
+                    continue;
+                }
 
-            // Look up firstname/lastname from Moodle.
-            $firstname = '';
-            $lastname  = '';
-            if (isset($userbyid[$sisid])) {
+                // Bind the SISID parameter to avoid SQL injection and let Oracle reuse the parse.
+                $blobsql = "SELECT {$colphoto}
+                              FROM {$dbschema}.{$dbtable}
+                             WHERE {$colsisid} = :sisid";
+
+                $imagedata = $this->fetch_single_blob($extdb, $dbtype, $blobsql, $sisid);
+
+                if (empty($imagedata)) {
+                    mtrace("  WARN: empty BLOB for sisid={$sisid}, skipping.");
+                    $skipped++;
+                    continue;
+                }
+
+                // Look up firstname/lastname from Moodle.
                 $firstname = $userbyid[$sisid]->firstname;
                 $lastname  = $userbyid[$sisid]->lastname;
-            } else {
-                $nousers++;
-                mtrace("  INFO: no Moodle user with idnumber={$sisid} — photo imported without name.");
-            }
 
-            // Detect MIME from magic bytes.
-            $mime = $this->detect_mime($imagedata);
-            if (!$mime) {
-                mtrace("  WARN: unrecognised image type for sisid={$sisid}, skipping.");
-                $skipped++;
-                continue;
-            }
-
-            try {
-                $now      = time();
-                $existing = $DB->get_record('local_yucardphoto', ['sisid' => $sisid]);
-
-
-                // Write blob to Moodle file system.
-                $fileurl  = local_yucardphoto_store_photo($sisid, $imagedata, $mime, -1);
-                $ext      = ($mime === 'image/png') ? 'png' : 'jpg';
-                $filepath = "/{$sisid}.{$ext}";
-
-                if ($existing) {
-                    $existing->firstname          = $firstname;
-                    $existing->lastname           = $lastname;
-                    $existing->moodle_file_url    = $fileurl;
-                    $existing->yucard_image_path  = $filepath;
-                    $existing->yucard_lastupdated = $lastupdated;
-                    $existing->uploaded_by        = -1;
-                    $existing->timemodified       = $now;
-                    $DB->update_record('local_yucardphoto', $existing);
-                    $updated++;
-                } else {
-                    $DB->insert_record('local_yucardphoto', (object)[
-                        'sisid'              => $sisid,
-                        'firstname'          => $firstname,
-                        'lastname'           => $lastname,
-                        'moodle_file_url'    => $fileurl,
-                        'yucard_image_path'  => $filepath,
-                        'yucard_lastupdated' => $lastupdated,
-                        'uploaded_by'        => -1,
-                        'timecreated'        => $now,
-                        'timemodified'       => $now,
-                    ]);
-                    $inserted++;
+                // Detect MIME from magic bytes.
+                $mime = $this->detect_mime($imagedata);
+                if (!$mime) {
+                    mtrace("  WARN: unrecognised image type for sisid={$sisid}, skipping.");
+                    $skipped++;
+                    continue;
                 }
-            } catch (\Throwable $e) {
-                mtrace("  ERROR processing sisid={$sisid}: " . $e->getMessage());
-                $errors++;
+
+                try {
+                    $now      = time();
+                    $existing = $DB->get_record('local_yucardphoto', ['sisid' => $sisid]);
+
+
+                    // Write blob to Moodle file system.
+                    $fileurl  = local_yucardphoto_store_photo($sisid, $imagedata, $mime, -1);
+                    $ext      = ($mime === 'image/png') ? 'png' : 'jpg';
+                    $filepath = "/{$sisid}.{$ext}";
+
+                    if ($existing) {
+                        $existing->firstname          = $firstname;
+                        $existing->lastname           = $lastname;
+                        $existing->moodle_file_url    = $fileurl;
+                        $existing->yucard_image_path  = $filepath;
+                        $existing->yucard_lastupdated = $lastupdated;
+                        $existing->uploaded_by        = -1;
+                        $existing->timemodified       = $now;
+                        $DB->update_record('local_yucardphoto', $existing);
+                        $updated++;
+                    } else {
+                        $DB->insert_record('local_yucardphoto', (object)[
+                            'sisid'              => $sisid,
+                            'firstname'          => $firstname,
+                            'lastname'           => $lastname,
+                            'moodle_file_url'    => $fileurl,
+                            'yucard_image_path'  => $filepath,
+                            'yucard_lastupdated' => $lastupdated,
+                            'uploaded_by'        => -1,
+                            'timecreated'        => $now,
+                            'timemodified'       => $now,
+                        ]);
+                        $inserted++;
+                    }
+                } catch (\Throwable $e) {
+                    mtrace("  ERROR processing sisid={$sisid}: " . $e->getMessage());
+                    $errors++;
+                }
             }
+
+            $batchduration = round(microtime(true) - $batchstart, 2);
+            $batchinserted = $inserted - $batchinsertedstart;
+            $batchupdated = $updated - $batchupdatedstart;
+            $batchskipped = $skipped - $batchskippedstart;
+            $batchnousers = $nousers - $batchnousersstart;
+            $batcherrors = $errors - $batcherrorsstart;
+            mtrace("local_yucardphoto: completed batch {$batchno}/{$totalbatches} in {$batchduration}s — " .
+                "inserted={$batchinserted}, updated={$batchupdated}, skipped={$batchskipped}, " .
+                "nousers={$batchnousers}, errors={$batcherrors}.");
         }
 
         $this->close_external($extdb, $dbtype);
 
-        mtrace("local_yucardphoto: import complete — inserted={$inserted}, updated={$updated}, " .
-               "unchanged={$unchanged}, skipped={$skipped}, nousers={$nousers}, errors={$errors}.");
+        $totalduration = round(microtime(true) - $taskstart, 2);
+        mtrace("local_yucardphoto: import complete — batchsize={$batchsize}, batches={$totalbatches}, " .
+               "inserted={$inserted}, updated={$updated}, unchanged={$unchanged}, skipped={$skipped}, " .
+               "nousers={$nousers}, errors={$errors}, duration_total={$totalduration}s.");
     }
 
     // -----------------------------------------------------------------------
