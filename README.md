@@ -1,7 +1,7 @@
 # local_yucardphoto — YU Card Photo Roster
 
 **Package:** `local_yucardphoto`  
-**Version:** 1.0.0 (Build: 2026040600)  
+**Version:** 1.0.1 (Build: 2026040601)  
 **Moodle:** 5.1+  
 **Author:** ED&IT, York University  
 **Licence:** GNU GPL v3 or later
@@ -20,9 +20,10 @@ Photos are stored in the **Moodle file system** (not as database BLOBs). The dat
 
 | Feature | Detail |
 |---|---|
-| Nightly photo import | Scheduled task at midnight pulls photo blobs from the external YU Card database (MySQL, PostgreSQL, or Oracle), writes them to the Moodle file system, and upserts records. Only photos whose `yucard_lastupdated` timestamp has changed since the last run are re-written — unchanged photos are skipped. |
+| Nightly photo import | Scheduled task at midnight reads metadata first (`SISID` + `PHOTOMODIFIEDDATE`), computes the delta, then fetches one photo BLOB per SISID only when needed. Changed rows are processed in batches (default 500) in a single task run, then written to Moodle file storage and upserted in DB. |
 | Per-course opt-in | A **Participant Photograph** section in Course Settings lets instructors and admins enable or disable the Photo View button per course. Default is **No (disabled)** for all existing and new courses. |
 | Photo View button | When enabled for a course, a **Photo View** button appears in the Participants page toolbar for authorised roles. |
+| Global Photo View kill switch | Site admins can globally disable Photo View regardless of course-level setting. When enabled, the button is hidden and direct access to `/local/yucardphoto/participants.php` is blocked. |
 | Photo roster page | A responsive Bootstrap 5 grid (`/local/yucardphoto/participants.php`) showing each student's photo, name, SIS ID, and email. Supports search (first name, last name, SIS ID), sort (last name, first name, email, SIS ID), and pagination (20 or 100 per page). |
 | Manual photo upload | Admins and managers can search for a Moodle user and upload a replacement JPEG/PNG photo via `/local/yucardphoto/upload.php`. The page shows the student's current stored photo so the admin can confirm what they are overriding. |
 | Templated UI | Both the roster page and upload page are fully Mustache-templated (`templates/participants.mustache`, `templates/upload.mustache`). Theme designers can override them by placing a copy under `theme/<themename>/templates/local_yucardphoto/`. |
@@ -136,7 +137,7 @@ The pluginfile URL served to the browser is:
 /pluginfile.php/{syscontextid}/local_yucardphoto/photos/{itemid}/{sisid}.jpg
 ```
 
-Access requires `moodle/course:viewparticipants` in the system context.
+Access requires `local/yucardphoto:viewroster` (site admins always pass). The pluginfile handler allows users with this capability in system context or in at least one course context.
 
 ---
 
@@ -162,10 +163,12 @@ php admin/cli/purge_caches.php
 
 Go to **Site administration → Local plugins → YU Card Photo Roster** and fill in:
 
-- External DB type (MySQL / PostgreSQL / Oracle)
-- Host, database name, username, password
+- External DB type (Oracle/OCI8)
+- Oracle TNS connect string
+- Oracle schema, username, and password
 - Source table/view name
-- Column names for student ID, first name, last name, photo blob, and last-updated timestamp
+- Column names for SISID, photo BLOB, and last-updated timestamp
+- Optional global roster switch: **Disable Photo View globally**
 
 ### 5. (Optional) Run the import task manually to test
 
@@ -206,12 +209,17 @@ Go to the course → **Settings** → scroll to **Participant Photograph** → s
 **Class:** `\local_yucardphoto\task\import_yucard_photos`
 
 The task:
-1. Connects to the configured external database.
-2. Reads all rows from the source table.
-3. For each row, checks whether `yucard_lastupdated` has changed since the last import:
-   - **Unchanged** → skipped (no file write, no DB update).
-   - **Changed / new / no timestamp** → writes the image blob to the Moodle file system and upserts the record.
-4. Logs a summary: `inserted=N, updated=N, unchanged=N, skipped=N, errors=N`.
+1. Connects to the configured Oracle database.
+2. Reads metadata only (`SISID`, `PHOTOMODIFIEDDATE`) from source.
+3. Compares metadata to local records and builds a `needsupdate` set.
+4. Processes `needsupdate` in chunks using `yucard_batch_size` (default `500`).
+5. For each SISID in each chunk:
+   - Skip if no Moodle user with matching `user.idnumber`.
+   - Fetch one BLOB using a targeted query (`WHERE SISID = :sisid`).
+   - Detect MIME, store file in Moodle file storage, insert/update local DB record.
+6. Logs per-batch timing and a final summary, including total duration.
+
+See `docs/PHOTOIMPORT_ARCHITECTURE` for the detailed import flow and rationale.
 
 The task can be run manually via the Moodle scheduled tasks admin page or the CLI command above.
 
@@ -243,6 +251,15 @@ This plugin stores personally identifiable information (student name, SIS ID, ph
 ---
 
 ## Changelog
+
+### 1.0.1 — 2026-04-06
+
+- Updated release metadata to `1.0.1 (Build: 2026040601)`.
+- Import task now processes changed rows in configurable batches (`yucard_batch_size`, default 500) in one run.
+- Added per-batch timing/progress logs and total run duration summary.
+- Import strategy clarified and enforced: metadata-first delta + single-BLOB fetch per SISID.
+- Added global admin setting to disable Photo View across all courses.
+- Added global disable enforcement in both button injection hook and direct roster page access.
 
 ### 1.0.0 — 2026-04-06
 
